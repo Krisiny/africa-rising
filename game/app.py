@@ -88,6 +88,7 @@ class App:
         self.show_card = config.SHOW_COUNTRY_CARD
         self.touch = touch_screen()       # played by touch: "Tap ..." texts and the menu button
         self.menu_open = False
+        self.menu_backdrop = None         # the darkened game behind the open menu
         self.end_armed = 0.0              # touch menu: "End game now" was tapped once
         self.upright = False              # a phone held upright (web version)
         self.upright_skipped = False      # "Tap to play anyway" was tapped
@@ -409,6 +410,7 @@ class App:
         """A tap does the same as the matching key."""
         if self.touch and self.scene not in ("error", "crash") and screens.menu_button_hit(pos):
             self.menu_open = not self.menu_open
+            self.menu_backdrop = None
             self.end_armed = 0.0
             return
         if self.menu_open:
@@ -638,13 +640,22 @@ class App:
     # ----- Drawing ----------------------------------------------------------------------
 
     def draw(self, surface) -> None:
-        surface.fill(ui.PAPER)
-        if self.scene in BOARD_SCENES:
-            screens.draw_board_scene(surface, self)
+        if self.menu_open and self.menu_backdrop is not None:
+            surface.blit(self.menu_backdrop, (0, 0))      # the game stays still behind the menu
         else:
-            draw = getattr(screens, f"draw_{self.scene}", None)
-            if draw is not None:
-                draw(surface, self)
+            surface.fill(ui.PAPER)
+            if self.scene in BOARD_SCENES:
+                screens.draw_board_scene(surface, self)
+            else:
+                draw = getattr(screens, f"draw_{self.scene}", None)
+                if draw is not None:
+                    draw(surface, self)
+            if self.menu_open:
+                # The menu just opened: darken the game behind it once and keep that
+                # picture, so phones don't redraw everything 60 times a second (that
+                # made the sound crackle in the browser).
+                ui.card(surface, surface.get_rect(), (*ui.INK, 150), None, 0, 0)
+                self.menu_backdrop = surface.copy()
         screens.draw_overlays(surface, self)
         if self.upright:
             screens.draw_rotate(surface, self)

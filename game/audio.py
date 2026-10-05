@@ -16,6 +16,7 @@ import io
 import math
 import random
 import struct
+import sys
 import tempfile
 from pathlib import Path
 
@@ -31,9 +32,14 @@ MIN_TRACK_TIME = 2.0           # a song counts as finished only after it has pla
 
 
 def pre_init() -> None:
-    """Call before pygame.init() for a small audio delay."""
+    """Call before pygame.init().
+
+    A small buffer gives a short delay on a computer. In the browser the sound
+    is mixed between frames, so a bigger buffer keeps it clean on slow phones.
+    """
+    buffer = 2048 if sys.platform == "emscripten" else 512
     try:
-        pygame.mixer.pre_init(RATE, -16, 2, 512)
+        pygame.mixer.pre_init(RATE, -16, 2, buffer)
     except Exception:
         pass
 

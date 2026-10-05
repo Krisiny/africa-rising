@@ -650,8 +650,10 @@ def _menu_button(surface) -> None:
 
 
 def _draw_menu(surface, app) -> None:
-    """Big buttons for what the keyboard keys do: undo, sound, fullscreen, end."""
-    ui.card(surface, surface.get_rect(), (*ui.INK, 150), None, 0, 0)
+    """Big buttons for what the keyboard keys do: undo, sound, fullscreen, end.
+
+    The darkened game behind the menu is drawn by App.draw (once, then reused).
+    """
     items = menu_items(app)
     box = items[0][3].unionall([rect for *_, rect in items]).inflate(80, 80)
     box.y -= 70           # room for the title above the buttons
