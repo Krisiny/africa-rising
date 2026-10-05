@@ -7,7 +7,7 @@ the game, so keep them, but you can move them around in the sentence.
 
 GAME_TITLE = "Africa Rising"
 ROUNDS = 3
-TIMER_SECONDS = 20
+TIMER_SECONDS = 0        # seconds to answer; 0 = no timer (unlimited time)
 SHOW_COUNTRY_CARD = True
 FULLSCREEN = True
 DISPLAY_INDEX = 0        # which screen to use if the projector is a second screen
@@ -30,6 +30,7 @@ TEXT = {
     "how_title": "How to play",
     "how_step_1": "Roll the die and move.",
     "how_step_2": "Something happens in your country. Pick one of three options in {seconds} seconds.",
+    "how_step_2_no_timer": "Something happens in your country. Pick one of three options.",
     "how_step_3": "Smart choices grow your GDP. The highest growth after {rounds} rounds wins.",
     "how_teams": "Teams",
     "how_continue": "Space to begin",
@@ -98,4 +99,9 @@ TEXT = {
     # Unexpected error screen (last-resort safety net)
     "crash_title": "Something went wrong",
     "crash_body": "The game was saved. Start it again and press R to resume.",
+
+    # Web version: shown after Esc twice (a web page can't close its own tab)
+    "closed_title": "The game is saved",
+    "closed_body": "You can close this browser tab now.",
+    "closed_resume": "Press R to keep playing.",
 }

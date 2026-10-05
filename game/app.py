@@ -248,10 +248,10 @@ class App:
     def quit(self) -> None:
         if self.state is not None and self.state.phase != "finished":
             self.save()
-        if WEB:      # a web page can't close itself: go back to the start instead
+        if WEB:      # a web page can't close its own tab: say it's safe to close it
             self.state = None
-            self.saved = load_game(self.save_path, self.content) if self.content else None
-            self.set_scene("resume" if self.saved else "title")
+            self.toast_left = 0.0         # hide "Press Esc again to quit"
+            self.set_scene("closed")
             return
         self.running = False
 
@@ -331,6 +331,11 @@ class App:
             keep(self.save_path)
             self.set_scene("title")
 
+    def _key_closed(self, key) -> None:
+        if key == pygame.K_r:
+            self.saved = load_game(self.save_path, self.content) if self.content else None
+            self.set_scene("resume" if self.saved else "title")
+
     def _key_title(self, key) -> None:
         if key in CONTINUE_KEYS:
             self.set_scene("howto")
@@ -354,7 +359,7 @@ class App:
     def _key_event(self, key) -> None:
         if DIGITS.get(key, 0) in (1, 2, 3):
             self.choose(DIGITS[key] - 1)
-        elif key == pygame.K_p:
+        elif key == pygame.K_p and config.TIMER_SECONDS > 0:
             self.paused = not self.paused
 
     def _key_reveal(self, key) -> None:

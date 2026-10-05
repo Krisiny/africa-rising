@@ -39,6 +39,8 @@ installing anything: https://krisiny.github.io/africa-rising/
   then use the keyboard as usual. F11 makes the browser fullscreen.
 - The autosave is kept in the browser, so resume works after a reload.
 - On the final results screen, press L to download game_log.csv.
+- Esc twice saves the game and says you can close the tab (a web page can't
+  close its own tab).
 - After changing the game or content.xlsx, rebuild and publish it:
 
   ```

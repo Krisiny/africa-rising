@@ -59,7 +59,8 @@ def draw_howto(surface, app) -> None:
     x = 160
     ui.text(surface, TEXT["how_title"], "display", 72, ui.INK, (x, 80))
     steps = [TEXT["how_step_1"],
-             TEXT["how_step_2"].format(seconds=config.TIMER_SECONDS),
+             TEXT["how_step_2"].format(seconds=config.TIMER_SECONDS) if config.TIMER_SECONDS > 0
+             else TEXT["how_step_2_no_timer"],
              TEXT["how_step_3"].format(rounds=config.ROUNDS)]
     y = 220
     for number, step in enumerate(steps, start=1):
@@ -98,6 +99,13 @@ def draw_error(surface, app) -> None:
         ui.text(surface, TEXT["error_more"].format(count=len(app.problems) - shown), "bold", 32, ui.LOSS, (x, y))
     ui.text(surface, TEXT["error_fix_hint"], "text", 38, ui.INK, (x, 940))
     ui.text(surface, TEXT["error_quit"], "bold", 38, ui.INK, (x, 995))
+
+
+def draw_closed(surface, app) -> None:
+    """Web version only: shown after Esc twice, because a web page can't close its tab."""
+    ui.text(surface, TEXT["closed_title"], "display", 72, ui.INK, (ui.W // 2, 440), "center")
+    ui.text(surface, TEXT["closed_body"], "text", 46, ui.INK, (ui.W // 2, 540), "center")
+    _prompt(surface, TEXT["closed_resume"], 900)
 
 
 def draw_crash(surface, app) -> None:
@@ -179,7 +187,7 @@ def draw_event(surface, app) -> None:
     event = state.current_event
     x, width = CARD.x + 50, CARD.w - 100
 
-    # header: team name in its color, seconds left on the right
+    # header: team name in its color (and the seconds left, if there is a timer)
     hx = x
     flag = ui.flag(code, 40)
     if flag is not None:
@@ -187,6 +195,20 @@ def draw_event(surface, app) -> None:
         hx += flag.get_width() + 14
     ui.text(surface, TEXT["turn"].format(name=country.name), "bold", 46, country.color,
             (hx, CARD.y + 58), "midleft")
+    if config.TIMER_SECONDS > 0:
+        _draw_timer(surface, app, x, width)
+
+    # event title with its good/bad arrow, then the description
+    y = CARD.y + (160 if config.TIMER_SECONDS > 0 else 120)
+    good = event.kind == "good"
+    ui.arrow(surface, (x + 26, y + 44), 54, good, ui.GAIN if good else ui.LOSS)
+    ui.text(surface, event.title, "display", 72, ui.INK, (x + 70, y))
+    rect = ui.paragraph(surface, event.description, "text", 38, ui.INK, (x, y + 104), width)
+    _draw_options_and_card(surface, app, event, country, x, width, rect.bottom)
+
+
+def _draw_timer(surface, app, x: int, width: int) -> None:
+    """Seconds left at the top right and the timer bar (only when TIMER_SECONDS > 0)."""
     seconds = max(0, math.ceil(app.timer_left - 1e-6))
     last = app.timer_left <= 5
     if app.timer_left <= 0:
@@ -205,15 +227,11 @@ def draw_event(surface, app) -> None:
         fill = pygame.Rect(track.x, track.y, max(24, round(track.w * share)), track.h)
         pygame.draw.rect(surface, ui.LOSS if last else ui.INK, fill, border_radius=12)
 
-    # event title with its good/bad arrow, then the description
-    y = CARD.y + 160
-    good = event.kind == "good"
-    ui.arrow(surface, (x + 26, y + 44), 54, good, ui.GAIN if good else ui.LOSS)
-    ui.text(surface, event.title, "display", 72, ui.INK, (x + 70, y))
-    rect = ui.paragraph(surface, event.description, "text", 38, ui.INK, (x, y + 104), width)
 
+def _draw_options_and_card(surface, app, event, country, x: int, width: int, top: int) -> None:
+    """The three option buttons and, below them, the country card."""
     # three option buttons: text only, never the values
-    y = rect.bottom + 40
+    y = top + 40
     bw = (width - 2 * 30) // 3
     bh = max(ui.Button.height_for(o, bw) for o in event.options)
     app.buttons = []
@@ -331,6 +349,8 @@ def draw_final(surface, app) -> None:
 def draw_overlays(surface, app) -> None:
     if app.show_help:
         rows = TEXT["controls"]
+        if config.TIMER_SECONDS <= 0:
+            rows = [r for r in rows if r[0] != "P"]      # no timer, so nothing to pause
         box = pygame.Rect(1120, 120, 740, 110 + len(rows) * 54)
         ui.card(surface, box)
         ui.text(surface, TEXT["controls_title"], "bold", 42, ui.INK, (box.x + 30, box.y + 24))
