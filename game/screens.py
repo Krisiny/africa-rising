@@ -15,6 +15,7 @@ import config
 from config import TEXT
 from game import ui
 from game.board import LANDED_FILL, draw_board, draw_scoreboard
+from game.mascot import draw_lion
 from game.webstore import WEB
 
 CARD = pygame.Rect(80, 50, 1760, 890)        # event card (the photo shows below it)
@@ -415,24 +416,27 @@ def draw_final(surface, app) -> None:
 
 
 def _draw_final_single(surface, app) -> None:
-    """Singleplayer: one country's progress as a number and a bar that fills from the middle."""
-    app.confetti.draw(surface)
+    """Singleplayer: the progress as a number and a bar that fills from the middle,
+    with a lion on the right that gets fat (gains) or thin (losses) as it fills."""
     state = app.state
     code = state.codes[0]
     country = app.content.country(code)
-    ui.text(surface, TEXT["single_final_title"], "display", 110, ui.INK, (ui.W // 2, 120), "center")
-    label_w = 76 + ui.font("bold", 52).size(country.name)[0]
-    _country_line(surface, app, code, (ui.W // 2 - label_w // 2, 250), 52, "bold")
-
     shown = app.final_progress()
     value = round(shown)
-    num = ui.text(surface, ui.signed_pct(value), "display", 160, ui.value_color(value),
-                  (ui.W // 2, 420), "center")
+    scale = state.rounds * max(abs(v) for r in app.content.results.values() for v in r.values)
+
+    app.confetti.draw(surface)
+    draw_lion(surface, shown, scale, app.scene_time)      # behind the text, so that stays readable
+    x = 680                                                 # middle of the left half
+    ui.text(surface, TEXT["single_final_title"], "display", 110, ui.INK, (x, 120), "center")
+    label_w = 76 + ui.font("bold", 52).size(country.name)[0]
+    _country_line(surface, app, code, (x - label_w // 2, 250), 52, "bold")
+    num = ui.text(surface, ui.signed_pct(value), "display", 160, ui.value_color(value), (x, 420), "center")
     ui.trend_mark(surface, (num.left - 60, 420), 80, value)
 
     # the bar: zero in the middle, green fills to the right, red to the left
-    scale = state.rounds * max(abs(v) for r in app.content.results.values() for v in r.values)
-    bar = pygame.Rect(260, 560, 1400, 90)
+    bar = pygame.Rect(0, 560, 1080, 90)
+    bar.centerx = x
     half = bar.w // 2
     pygame.draw.rect(surface, ui.WHITE, bar, border_radius=45)
     fill = min(half, round(half * abs(shown) / max(1, scale)))
@@ -445,12 +449,12 @@ def _draw_final_single(surface, app) -> None:
                          border_bottom_left_radius=0 if shown > 0 else 45)
     pygame.draw.rect(surface, ui.INK, bar, 5, border_radius=45)
     pygame.draw.line(surface, ui.INK, (bar.centerx, bar.y - 18), (bar.centerx, bar.bottom + 18), 5)
-    for x, v in ((bar.left, -scale), (bar.centerx, 0), (bar.right, scale)):
-        ui.text(surface, ui.signed_pct(v), "bold", 38, ui.value_color(v), (x, bar.bottom + 28), "midtop")
+    for bx, v in ((bar.left, -scale), (bar.centerx, 0), (bar.right, scale)):
+        ui.text(surface, ui.signed_pct(v), "bold", 38, ui.value_color(v), (bx, bar.bottom + 28), "midtop")
 
     if WEB:
-        _prompt(surface, TEXT["download_log"], 915)
-    _pulsing_button(surface, TEXT["final_continue"], (ui.W // 2, 1005), app.scene_time, False)
+        ui.text(surface, TEXT["download_log"], "text", 38, ui.INK, (x, 915), "center")
+    _pulsing_button(surface, TEXT["final_continue"], (x, 1005), app.scene_time, False)
 
 
 # ----- Game style and country choice ------------------------------------------------------

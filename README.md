@@ -76,6 +76,10 @@ After "How to play" the game asks for a game style:
   SINGLE_ROUNDS turns (6, set in config.py) with just that country. The end
   screen shows "Your final progress": the GDP growth counting up and a bar
   that fills green to the right (gain) or red to the left (loss).
+  A cartoon lion (game/mascot.py) reacts as the number counts up: it gets
+  fatter and more surprised with gains, floats like a balloon above +5% and
+  fills the screen at the maximum; with losses it gets thin and sad, and at
+  -5% or lower only its skeleton is left.
 - **2 = Multiplayer**: the classroom game with all teams, ROUNDS rounds (3).
 
 Both end with the credits screen.
@@ -173,4 +177,5 @@ is in `content.xlsx`. Translate those two and the game is translated.
 | `game/board.py` | Board layout, tokens and scoreboard |
 | `game/ui.py` | Colors, fonts, text, buttons and effects |
 | `game/audio.py` | Sounds and music |
+| `game/mascot.py` | The lion on the singleplayer end screen |
 | `game/webstore.py` | Keeps the autosave in the browser (web version) |
