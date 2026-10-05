@@ -1,0 +1,7 @@
+# Made while playing or building; not part of the game
+__pycache__/
+build_web/
+savegame.json
+savegame.json.tmp
+game_log.csv
+error_log.txt
