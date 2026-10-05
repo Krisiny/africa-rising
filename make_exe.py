@@ -40,6 +40,8 @@ def main() -> int:
         "--hidden-import", "game.app",    # main.py imports these only when needed
         "--hidden-import", "game.simulate",
         "--exclude-module", "pygbag",
+        "--exclude-module", "numpy",      # pygame can use it, but this game doesn't
+        "--exclude-module", "soundfile",  # only needed by make_web.py
         "--distpath", str(DIST),
         "--workpath", str(WORK),
         "--specpath", str(WORK),
