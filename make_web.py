@@ -15,6 +15,7 @@ Needs: python -m pip install pygbag soundfile
 Run it again after every change to the game or to content.xlsx.
 """
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -69,8 +70,25 @@ def main() -> int:
     shutil.rmtree(DOCS, ignore_errors=True)
     shutil.copytree(built, DOCS)
     (DOCS / ".nojekyll").write_text("", encoding="utf-8")   # GitHub Pages: serve files as they are
+    add_version(DOCS, STAGE.name)
     print(f"Done: the web version is in {DOCS}")
     return 0
+
+
+def add_version(folder: Path, name: str) -> None:
+    """Make index.html ask for the game file as name.tar.gz?v=<fingerprint>.
+
+    Browsers keep downloaded files for a while, so after an update they could
+    keep playing the old game. A new fingerprint for every build means a
+    reload always fetches the new game file.
+    """
+    archive = folder / f"{name}.tar.gz"
+    version = hashlib.sha1(archive.read_bytes()).hexdigest()[:10]
+    page = folder / "index.html"
+    html = page.read_text(encoding="utf-8")
+    for file in (f"{name}.tar.gz", f"{name}.apk"):
+        html = html.replace(f'"{file}"', f'"{file}?v={version}"')
+    page.write_text(html, encoding="utf-8")
 
 
 def convert_audio(folder: Path) -> bool:
