@@ -62,6 +62,9 @@ TEXT = {
     "best_moves": "{best} of {turns} best moves",
     "place": "{place}.",
     "play_again": "Press space to play again or Esc to quit.",
+    "download_log": "Press L to download the game log",
+    "log_downloaded": "Game log downloaded",
+    "log_missing": "No game log yet",
 
     # Short messages at the bottom of the screen
     "press_e_again": "Press E again to end the game",
@@ -83,6 +86,7 @@ TEXT = {
         ("H", "Show or hide this help"),
         ("E twice", "End the game now"),
         ("Esc twice", "Quit (the game is saved)"),
+        ("L", "Download the game log (web, final screen)"),
     ],
 
     # Content error screen

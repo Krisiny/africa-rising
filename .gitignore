@@ -5,3 +5,5 @@ savegame.json
 savegame.json.tmp
 game_log.csv
 error_log.txt
+build_exe/
+dist/

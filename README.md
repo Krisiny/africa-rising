@@ -38,6 +38,7 @@ installing anything: https://krisiny.github.io/africa-rising/
 - Click once on the page to start (browsers only allow sound after a click),
   then use the keyboard as usual. F11 makes the browser fullscreen.
 - The autosave is kept in the browser, so resume works after a reload.
+- On the final results screen, press L to download game_log.csv.
 - After changing the game or content.xlsx, rebuild and publish it:
 
   ```
@@ -48,6 +49,20 @@ installing anything: https://krisiny.github.io/africa-rising/
   This writes the website into `docs/`. Upload the change to GitHub (for
   example with GitHub Desktop: commit, then push) and the link shows the new
   version a minute later.
+
+## Windows version without Python (USB backup)
+
+```
+python -m pip install pyinstaller
+python make_exe.py
+```
+
+This makes `dist/Africa Rising/` and `dist/Africa Rising (Windows).zip`
+(about 18 MB). Copy the folder or the zip to a USB stick; on any Windows PC,
+unzip it and double-click `Africa Rising.exe`. Nothing needs to be installed.
+Windows may say "Windows protected your PC" because the file isn't signed:
+click "More info" and then "Run anyway". `content.xlsx` and `assets/` sit next
+to the .exe, so they can still be edited or swapped there.
 
 ## Controls (presenter)
 
@@ -118,6 +133,7 @@ is in `content.xlsx`. Translate those two and the game is translated.
 | `config.py` | Settings and all on-screen text |
 | `make_content.py` | Creates content.xlsx |
 | `make_web.py` | Builds the web version into docs/ |
+| `make_exe.py` | Builds the Windows version into dist/ |
 | `game/content.py` | Loads and checks content.xlsx |
 | `game/state.py` | The rules: moving, scoring, undo, ranking, saving (no pygame) |
 | `game/simulate.py` | The `--simulate` test |

@@ -15,6 +15,7 @@ import config
 from config import TEXT
 from game import ui
 from game.board import draw_board, draw_scoreboard
+from game.webstore import WEB
 
 CARD = pygame.Rect(80, 50, 1760, 980)        # event card
 REVEAL = pygame.Rect(160, 60, 1600, 960)     # reveal card
@@ -320,6 +321,8 @@ def draw_final(surface, app) -> None:
         ui.text(surface, TEXT["best_moves"].format(best=s.best_moves, turns=s.turns),
                 "text", 38, ui.INK, (1210, cy), "midleft")
         y += row_h
+    if WEB:
+        _prompt(surface, TEXT["download_log"], 950)
     _prompt(surface, TEXT["play_again"])
 
 

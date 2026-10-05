@@ -49,3 +49,23 @@ def keep(path: Path) -> None:
             store.removeItem(path.name)
     except Exception:
         pass
+
+
+def download(path: Path) -> bool:
+    """Let the browser download the file (web version only). True if it worked."""
+    if not WEB:
+        return False
+    try:
+        import json
+        import platform
+        text = Path(path).read_text(encoding="utf-8-sig")
+        script = ("(function(name, text) {"
+                  " const blob = new Blob(['\ufeff' + text], {type: 'text/csv'});"
+                  " const a = document.createElement('a');"
+                  " a.href = URL.createObjectURL(blob); a.download = name;"
+                  " document.body.appendChild(a); a.click(); a.remove();"
+                  "})(%s, %s)" % (json.dumps(Path(path).name), json.dumps(text)))
+        platform.window.eval(script)
+        return True
+    except Exception:
+        return False

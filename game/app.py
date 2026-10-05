@@ -17,6 +17,7 @@ os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
 
 import asyncio
 import random
+import sys
 import time
 import traceback
 from pathlib import Path
@@ -30,9 +31,11 @@ from game.audio import Audio, pre_init
 from game.board import BoardLayout
 from game.content import ContentError, load_content
 from game.state import GameState, delete_save, load_game, persist
-from game.webstore import WEB, keep, restore
+from game.webstore import WEB, download, keep, restore
 
-ROOT = Path(__file__).resolve().parent.parent
+# The game folder. In the Windows .exe (see make_exe.py) it is the folder of the .exe.
+ROOT = (Path(sys.executable).parent if getattr(sys, "frozen", False)
+        else Path(__file__).resolve().parent.parent)
 
 INPUT_LOCK = 0.4          # seconds to ignore keys after every screen change
 DOUBLE_PRESS = 2.0        # seconds to press E or Esc a second time
@@ -366,7 +369,12 @@ class App:
             self.after_score()
 
     def _key_final(self, key) -> None:
-        if key in CONTINUE_KEYS:
+        if key == pygame.K_l and WEB:
+            if self.log_path.exists() and download(self.log_path):
+                self.show_toast(TEXT["log_downloaded"])
+            else:
+                self.show_toast(TEXT["log_missing"])
+        elif key in CONTINUE_KEYS:
             self.state = None
             self.set_scene("title")
 

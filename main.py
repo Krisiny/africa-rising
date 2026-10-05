@@ -19,7 +19,8 @@ from pathlib import Path
 import config
 from game.content import ContentError, load_content
 
-ROOT = Path(__file__).resolve().parent
+# The game folder. In the Windows .exe (see make_exe.py) it is the folder of the .exe.
+ROOT = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 
 
 def load_or_report(path: Path):
