@@ -63,9 +63,20 @@ TEXT = {
     "best_moves": "{best} of {turns} best moves",
     "place": "{place}.",
     "play_again": "Press space to play again or Esc to quit.",
+    "final_continue": "Press space to continue",
     "download_log": "Press L to download the game log",
     "log_downloaded": "Game log downloaded",
     "log_missing": "No game log yet",
+
+    # Sound check before the game starts
+    "sound_title": "SOUND ON!!!",
+    "sound_continue": "Press space to play",
+
+    # Credits after the final results: (photo in assets/images/, text under it)
+    "credits": [
+        ("kristof.jpg", "The Programmer"),
+        ("andrej.jpg", "The CEO"),
+    ],
 
     # Short messages at the bottom of the screen
     "press_e_again": "Press E again to end the game",

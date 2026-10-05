@@ -104,9 +104,14 @@ shows the same list on screen instead of starting if something is wrong.
 
 Everything in `assets/` is optional; the game runs without it.
 
-- `assets/backgrounds/`: `title.jpg` (title screen) and `howto.jpg` (how to
-  play), full-screen photos. Replace them with any photo; other sizes are
-  cropped to fill the screen. Without them those screens are plain paper.
+- `assets/backgrounds/`: full-screen photos, one per screen: `title.jpg`,
+  `howto.jpg`, `sound.jpg` (sound check), `board.jpg`, `event.jpg` (question
+  card) and `reveal.jpg` (answer). Replace any of them with another photo;
+  other sizes are cropped to fill the screen. A missing photo just means a
+  plain background on that screen.
+- `assets/images/`: `sound.png` (the speaker on the sound check screen) and
+  the credits photos `kristof.jpg` and `andrej.jpg`. The credits list (photo
+  and the text under it) is `credits` in the TEXT dictionary in config.py.
 
 - `assets/sounds/`: dice.wav, step.wav, good.wav, bad.wav, best.wav, tick.wav,
   win.wav (.ogg also works). Missing sounds are replaced by simple beeps.

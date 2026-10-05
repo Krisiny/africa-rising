@@ -1,8 +1,8 @@
 """The game window: scenes, keys, timer and the main loop.
 
 Scenes, in the order a game goes through them:
-  resume -> title -> howto -> turn -> rolling -> moving -> landed -> event -> reveal -> score
-  -> turn (next team) ... -> final
+  resume -> title -> howto -> sound -> turn -> rolling -> moving -> landed -> event -> reveal
+  -> score -> turn (next team) ... -> final -> credits -> title
 plus "error" when content.xlsx has a problem and "crash" as a last-resort net.
 
 All timing goes through update(dt), so tests can drive the App without a window.
@@ -115,7 +115,7 @@ class App:
         self.scene_time = 0.0
         self.backdrop = None          # redrawn once for the new screen (see screens._backdrop)
         self.lock = INPUT_LOCK
-        if name in ("resume", "title", "howto", "final"):
+        if name in ("resume", "title", "howto", "sound", "final", "credits"):
             self.audio.music("title")
         elif name in GAME_SCENES:
             self.audio.music(self.turn_team())
@@ -285,7 +285,7 @@ class App:
     def _global_key(self, key) -> bool:
         """Keys that work on every screen. Returns True if the key was used."""
         if key == pygame.K_ESCAPE:
-            if self.scene in ("final", "error", "crash") or self.esc_left > 0:
+            if self.scene in ("final", "credits", "error", "crash") or self.esc_left > 0:
                 self.quit()
             else:
                 self.esc_left = DOUBLE_PRESS
@@ -344,6 +344,10 @@ class App:
 
     def _key_howto(self, key) -> None:
         if key in CONTINUE_KEYS:
+            self.set_scene("sound")
+
+    def _key_sound(self, key) -> None:
+        if key in CONTINUE_KEYS:
             self.new_game()
 
     def _key_turn(self, key) -> None:
@@ -382,6 +386,10 @@ class App:
             else:
                 self.show_toast(TEXT["log_missing"])
         elif key in CONTINUE_KEYS:
+            self.set_scene("credits")
+
+    def _key_credits(self, key) -> None:
+        if key in CONTINUE_KEYS:
             self.state = None
             self.set_scene("title")
 

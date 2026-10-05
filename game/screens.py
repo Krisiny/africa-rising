@@ -17,7 +17,8 @@ from game import ui
 from game.board import draw_board, draw_scoreboard
 from game.webstore import WEB
 
-CARD = pygame.Rect(80, 50, 1760, 980)        # event card
+CARD = pygame.Rect(80, 50, 1760, 890)        # event card (the photo shows below it)
+BOARD_SHADE = 100                             # how much the board photo is darkened
 REVEAL = pygame.Rect(160, 60, 1600, 960)     # reveal card
 
 
@@ -54,12 +55,10 @@ def _photo(surface, name: str, shade: int = 0) -> bool:
 
     Returns False (and leaves the plain paper background) if the photo is missing.
     """
-    photo = ui.background(name)
+    photo = ui.background(name, shade)
     if photo is None:
         return False
     surface.blit(photo, (0, 0))
-    if shade:
-        ui.card(surface, surface.get_rect(), (0, 0, 0, shade), None, 0, 0)
     return True
 
 
@@ -174,11 +173,16 @@ def draw_crash(surface, app) -> None:
 # ----- Board ---------------------------------------------------------------------
 
 def draw_board_scene(surface, app) -> None:
-    """Header, board, tokens, middle of the board and scoreboard."""
+    """Header, board, tokens, middle of the board and scoreboard (on a photo if there is one)."""
     state = app.state
-    ui.text(surface, config.GAME_TITLE, "display", 56, ui.INK, (60, 56), "midleft")
+    on_photo = _photo(surface, "board", shade=BOARD_SHADE)
+    head = ui.WHITE if on_photo else ui.INK
+    ui.text(surface, config.GAME_TITLE, "display", 56, head, (60, 56), "midleft")
     ui.text(surface, TEXT["round"].format(round=state.display_round, rounds=state.rounds),
-            "bold", 42, ui.INK, (ui.W // 2, 56), "center")
+            "bold", 42, head, (ui.W // 2, 56), "center")
+    if on_photo:      # paper behind the Start marker and the middle, so they stay readable
+        ui.card(surface, app.layout.start.inflate(14, 0), ui.PAPER, ui.INK, 3, 12)
+        ui.card(surface, app.layout.center, ui.PAPER, ui.INK, 3, 12)
 
     mover = app.mover if app.scene in ("rolling", "moving") else None
     current = app.turn_team()
@@ -210,36 +214,42 @@ def _draw_middle(surface, app, code: str) -> None:
     ui.die(surface, (cx - 60, box.y + 62), 100, face)
     ui.disc(surface, (cx + 60, box.y + 62), 40, country.color, country.code)
     label = TEXT["turn"].format(name=country.name)
-    width = box.w + 2 * 20                    # may reach into the gaps between tiles
+    width = box.w - 20
     size = 46
     lines = ui.wrap(label, "bold", size, width)
     y = box.y + 128
     for line in lines[:2]:
         ui.text(surface, line, "bold", size, ui.INK, (cx, y), "midtop")
         y += 50
-    if app.scene == "turn":
-        ui.text(surface, TEXT["space_to_roll"], "text", 38, ui.INK, (cx, box.bottom - 6), "midbottom")
+    if app.scene == "turn":       # fades out and in, like the other "press space" prompts
+        ui.text(surface, TEXT["space_to_roll"], "bold", 38, ui.INK, (cx, box.bottom - 10), "midbottom",
+                alpha=ui.pulse(app.scene_time))
 
 
 # ----- Event card ------------------------------------------------------------------
 
-def _backdrop(surface, app) -> None:
-    """The board with a flat paper wash over it, behind the event and reveal cards.
+def _backdrop(surface, app, photo: str, card: pygame.Rect, banknote: bool = False) -> None:
+    """Background photo (or the washed-out board without one) plus the card on top.
 
-    Nothing behind the card changes while it is open, so it is drawn once per
-    screen and reused (this keeps the web version smooth).
+    Nothing behind the card's text changes while it is open, so this is drawn
+    once per screen and reused (this keeps the web version smooth).
     """
     if app.backdrop is None:
         app.backdrop = pygame.Surface((ui.W, ui.H))
         app.backdrop.fill(ui.PAPER)
-        draw_board_scene(app.backdrop, app)
-        ui.card(app.backdrop, app.backdrop.get_rect(), (*ui.PAPER, 215), None, 0, 0)
+        if not _photo(app.backdrop, photo):
+            draw_board_scene(app.backdrop, app)
+            ui.card(app.backdrop, app.backdrop.get_rect(), (*ui.PAPER, 215), None, 0, 0)
+        if banknote:
+            ui.card(app.backdrop, card, (*ui.PAPER, 240), None)
+            ui.banknote_border(app.backdrop, card.inflate(-24, -24))
+        else:
+            ui.card(app.backdrop, card, (*ui.PAPER, 240))
     surface.blit(app.backdrop, (0, 0))
 
 
 def draw_event(surface, app) -> None:
-    _backdrop(surface, app)
-    ui.card(surface, CARD)
+    _backdrop(surface, app, "event", CARD)
     state = app.state
     code = state.current_team
     country = app.content.country(code)
@@ -310,9 +320,7 @@ def _draw_options_and_card(surface, app, event, country, x: int, width: int, top
 # ----- Reveal ----------------------------------------------------------------------
 
 def draw_reveal(surface, app) -> None:
-    _backdrop(surface, app)
-    ui.card(surface, REVEAL, ui.PAPER, None)
-    ui.banknote_border(surface, REVEAL.inflate(-24, -24))
+    _backdrop(surface, app, "reveal", REVEAL, banknote=True)
 
     record = app.record
     country = app.content.country(record.code)
@@ -362,8 +370,8 @@ def draw_reveal(surface, app) -> None:
             surface.blit(tag, tag.get_rect(center=box.center))
 
     ui.paragraph(surface, result.reason, "text", 38, ui.INK, (x, REVEAL.y + 760), width)
-    ui.text(surface, TEXT["space_continue"], "text", 30, ui.INK,
-            (REVEAL.right - 50, REVEAL.bottom - 40), "bottomright")
+    ui.text(surface, TEXT["space_continue"], "bold", 34, ui.INK,
+            (REVEAL.right - 50, REVEAL.bottom - 40), "bottomright", alpha=ui.pulse(app.scene_time))
 
 
 # ----- Final results ------------------------------------------------------------------
@@ -399,8 +407,55 @@ def draw_final(surface, app) -> None:
                 "text", 38, ui.INK, (1210, cy), "midleft")
         y += row_h
     if WEB:
-        _prompt(surface, TEXT["download_log"], 950)
-    _prompt(surface, TEXT["play_again"])
+        _prompt(surface, TEXT["download_log"], 915)
+    _pulsing_button(surface, TEXT["final_continue"], (ui.W // 2, 1005), app.scene_time, False)
+
+
+# ----- Sound check and credits ----------------------------------------------------------
+
+def draw_sound(surface, app) -> None:
+    """Big speaker and a shaking "SOUND ON!!!" before the game starts."""
+    _cached(surface, app, _sound_static)
+    on_photo = ui.background("sound") is not None
+    t = app.scene_time
+    shake = (9 * math.sin(t * 43), 6 * math.sin(t * 57 + 1.3))
+    ui.text(surface, TEXT["sound_title"], "display", 150, ui.WHITE if on_photo else ui.INK,
+            (ui.W // 2 + shake[0], 770 + shake[1]), "center")
+    _pulsing_button(surface, TEXT["sound_continue"], (ui.W // 2, 985), t, on_photo)
+
+
+def _sound_static(surface, app) -> None:
+    _photo(surface, "sound", shade=90)
+    center = (ui.W // 2, 370)
+    pygame.draw.circle(surface, ui.WHITE, center, 260)
+    pygame.draw.circle(surface, ui.INK, center, 260, 5)
+    icon = ui.image("sound.png", 360)
+    if icon is not None:
+        surface.blit(icon, icon.get_rect(center=center))
+
+
+def draw_credits(surface, app) -> None:
+    """White screen with the team's photos and roles."""
+    _cached(surface, app, _credits_static)
+    _pulsing_button(surface, TEXT["play_again"], (ui.W // 2, 985), app.scene_time, False)
+
+
+def _credits_static(surface, app) -> None:
+    surface.fill(ui.WHITE)
+    people = TEXT["credits"]
+    photo_h, gap = 620, 160
+    pictures = [ui.image(file, photo_h) for file, _role in people]
+    widths = [p.get_width() if p else photo_h * 3 // 4 for p in pictures]
+    x = (ui.W - sum(widths) - gap * (len(people) - 1)) // 2
+    for (file, role), picture, width in zip(people, pictures, widths):
+        frame = pygame.Rect(x, 80, width, photo_h)
+        if picture is not None:
+            surface.blit(picture, frame)
+        else:
+            ui.card(surface, frame, ui.LINE, None)
+        pygame.draw.rect(surface, ui.INK, frame, 5)
+        ui.text(surface, role, "display", 84, ui.INK, (frame.centerx, frame.bottom + 30), "midtop")
+        x += width + gap
 
 
 # ----- Overlays ----------------------------------------------------------------------

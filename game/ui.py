@@ -48,7 +48,8 @@ _text_cache: dict[tuple, pygame.Surface] = {}
 _guilloche_cache: dict[tuple[int, int], pygame.Surface] = {}
 _stamp_cache: dict[tuple, pygame.Surface] = {}
 _flag_cache: dict[tuple[str, int], pygame.Surface | None] = {}
-_background_cache: dict[str, pygame.Surface | None] = {}
+_background_cache: dict[tuple[str, int], pygame.Surface | None] = {}
+_image_cache: dict[tuple[str, int], pygame.Surface | None] = {}
 _minus_ok: bool | None = None
 
 _TEXT_CACHE_MAX = 600
@@ -164,6 +165,7 @@ def init(assets_dir: Path) -> None:
     _stamp_cache.clear()
     _flag_cache.clear()
     _background_cache.clear()
+    _image_cache.clear()
     _minus_ok = None
     files = _font_dir_files(_assets)
     for style in ("display", "text", "bold"):
@@ -678,14 +680,25 @@ class Confetti:
 # Background photos and pulsing prompts
 # ---------------------------------------------------------------------------
 
-def background(name: str) -> pygame.Surface | None:
+def background(name: str, shade: int = 0) -> pygame.Surface | None:
     """assets/backgrounds/{name}.jpg (or .png) filling the whole canvas, or None.
 
     Photos of another size are scaled to cover the screen (edges cropped),
-    like a picture background in PowerPoint. Cached after the first load.
+    like a picture background in PowerPoint. `shade` (0-255) darkens the photo
+    so white text stays readable. Cached after the first load.
     """
-    if name in _background_cache:
-        return _background_cache[name]
+    key = (name, int(shade))
+    if key in _background_cache:
+        return _background_cache[key]
+    if shade:
+        surf = background(name)
+        if surf is not None:
+            surf = surf.copy()
+            dark = pygame.Surface((W, H), pygame.SRCALPHA)
+            dark.fill((0, 0, 0, int(shade)))
+            surf.blit(dark, (0, 0))
+        _background_cache[key] = surf
+        return surf
     surf = None
     path = _find_file(_assets / "backgrounds", name, (".jpg", ".jpeg", ".png"))
     if path is not None:
@@ -702,7 +715,29 @@ def background(name: str) -> pygame.Surface | None:
                 surf = surf.convert()
         except Exception:
             surf = None
-    _background_cache[name] = surf
+    _background_cache[key] = surf
+    return surf
+
+
+def image(name: str, height: int) -> pygame.Surface | None:
+    """assets/images/{name} (a file name like "sound.png") scaled to `height`, or None."""
+    key = (name, int(height))
+    if key in _image_cache:
+        return _image_cache[key]
+    surf = None
+    path = Path(_assets) / "images" / name
+    if path.is_file():
+        try:
+            img = pygame.image.load(str(path))
+            width = max(1, round(img.get_width() * height / img.get_height()))
+            if img.get_bitsize() not in (24, 32):       # e.g. palette PNGs: smoothscale needs 24/32 bit
+                rgba = pygame.Surface(img.get_size(), pygame.SRCALPHA)
+                rgba.blit(img, (0, 0))
+                img = rgba
+            surf = prep(pygame.transform.smoothscale(img, (width, int(height))))
+        except Exception:
+            surf = None
+    _image_cache[key] = surf
     return surf
 
 
