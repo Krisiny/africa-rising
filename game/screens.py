@@ -123,13 +123,16 @@ def draw_board_scene(surface, app) -> None:
     ui.text(surface, TEXT["round"].format(round=state.display_round, rounds=state.rounds),
             "bold", 42, ui.INK, (ui.W // 2, 56), "center")
 
-    mover = app.mover if app.scene in ("rolling", "moving") else None
+    rolling = app.scene in ("rolling", "rolled", "moving")
+    mover = app.mover if rolling else None
     current = app.turn_team()
-    highlight = state.positions.get(current) or None
-    if app.scene in ("rolling", "moving"):
-        highlight = None
-    draw_board(surface, app.layout, app.content, state.positions, highlight,
-               hidden=mover["code"] if mover and app.scene == "moving" else None)
+    positions = dict(state.positions)
+    if app.scene in ("rolling", "rolled"):
+        positions[mover["code"]] = mover["start"]     # don't give away the roll early
+    highlight = None if rolling or app.scene == "landed" else (state.positions.get(current) or None)
+    landed = state.tile if app.scene == "landed" else None
+    draw_board(surface, app.layout, app.content, positions, highlight,
+               hidden=mover["code"] if mover and app.scene == "moving" else None, landed=landed)
     if mover and app.scene == "moving":
         country = app.content.country(mover["code"])
         ui.disc(surface, app.hop_position(), 34, country.color, country.code)
@@ -142,7 +145,7 @@ def draw_board_scene(surface, app) -> None:
 def _draw_middle(surface, app, code: str) -> None:
     box = app.layout.center
     cx = box.centerx
-    if app.scene in ("rolling", "moving"):
+    if app.scene in ("rolling", "rolled", "moving", "landed"):
         face = app.die_face
     else:
         face = app.state.last_roll or 1

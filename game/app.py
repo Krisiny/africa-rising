@@ -1,7 +1,8 @@
 """The game window: scenes, keys, timer and the main loop.
 
 Scenes, in the order a game goes through them:
-  resume -> title -> howto -> turn -> rolling -> moving -> event -> reveal -> score
+  resume -> title -> howto -> turn -> rolling -> rolled -> moving -> landed -> event
+  -> reveal -> score
   -> turn (next team) ... -> final
 plus "error" when content.xlsx has a problem and "crash" as a last-resort net.
 
@@ -40,14 +41,18 @@ ROOT = (Path(sys.executable).parent if getattr(sys, "frozen", False)
 INPUT_LOCK = 0.4          # seconds to ignore keys after every screen change
 DOUBLE_PRESS = 2.0        # seconds to press E or Esc a second time
 TOAST_TIME = 2.0
-TUMBLE = 0.8              # die tumble (at most 1 s)
-HOP = 0.2                 # per tile
+TUMBLE = 1.0              # die tumble after Space
+ROLL_HOLD = 1.0           # the die shows its number before the token moves
+HOP = 0.4                 # per tile
+HOP_HEIGHT = 90           # how high the token bounces between tiles (px)
+LAND_HOLD = 1.0           # the landing tile glows green before the question opens
 COUNT_UP = 0.8            # reveal number
 SCORE_ANIM = 0.7          # scoreboard number
 SCORE_HOLD = 0.3          # short pause before the next team
 MAX_DT = 0.25             # a very slow frame never jumps the game ahead more than this
 
-GAME_SCENES = ("turn", "rolling", "moving", "event", "reveal", "score")
+GAME_SCENES = ("turn", "rolling", "rolled", "moving", "landed", "event", "reveal", "score")
+BOARD_SCENES = ("turn", "rolling", "rolled", "moving", "landed", "score")
 DIGITS = {getattr(pygame, f"K_{n}"): n for n in range(1, 10)}
 DIGITS.update({getattr(pygame, f"K_KP{n}"): n for n in range(1, 10)})
 CONTINUE_KEYS = (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER)
@@ -139,7 +144,7 @@ class App:
             keep(self.log_path)
 
     def hop_position(self) -> tuple[float, float]:
-        """Pixel position of the hopping token, with a small arc per hop."""
+        """Pixel position of the hopping token, with a bounce per hop."""
         m = self.mover
         hop = ui.secs(HOP)
         step = min(len(m["path"]) - 1e-6, self.scene_time / hop)
@@ -149,7 +154,7 @@ class App:
         a = self.layout.hop_point(before)
         b = self.layout.hop_point(m["path"][index])
         x = a[0] + (b[0] - a[0]) * frac
-        y = a[1] + (b[1] - a[1]) * frac - 60 * (4 * frac * (1 - frac))
+        y = a[1] + (b[1] - a[1]) * frac - HOP_HEIGHT * (4 * frac * (1 - frac))
         return x, y
 
     def count_value(self) -> int:
@@ -186,7 +191,7 @@ class App:
         self.mover = {"code": code, "start": start, "path": path, "steps": 0}
         self.die_face = value
         if real_die:
-            self.set_scene("moving")
+            self.set_scene("rolled")          # no tumble: show the number, then move
         else:
             self.audio.play("dice")
             self.die_face = random.randint(1, 6)
@@ -354,7 +359,7 @@ class App:
         if key in CONTINUE_KEYS:
             self.open_event()
 
-    _key_moving = _key_rolling
+    _key_rolled = _key_moving = _key_landed = _key_rolling     # Space skips to the question
 
     def _key_event(self, key) -> None:
         if DIGITS.get(key, 0) in (1, 2, 3):
@@ -398,7 +403,7 @@ class App:
     def _update_rolling(self, dt) -> None:
         if self.scene_time >= ui.secs(TUMBLE):
             self.die_face = self.state.last_roll
-            self.set_scene("moving")
+            self.set_scene("rolled")
         elif int(self.scene_time / 0.08) != int((self.scene_time - dt) / 0.08):
             self.die_face = random.choice([f for f in range(1, 7) if f != self.die_face])
 
@@ -408,6 +413,14 @@ class App:
             self.mover["steps"] = min(hops, len(self.mover["path"]))
             self.audio.play("step")
         if self.scene_time >= len(self.mover["path"]) * ui.secs(HOP):
+            self.set_scene("landed")
+
+    def _update_rolled(self, dt) -> None:
+        if self.scene_time >= ui.secs(ROLL_HOLD):
+            self.set_scene("moving")
+
+    def _update_landed(self, dt) -> None:
+        if self.scene_time >= ui.secs(LAND_HOLD):
             self.open_event()
 
     def _update_event(self, dt) -> None:
@@ -438,7 +451,7 @@ class App:
 
     def draw(self, surface) -> None:
         surface.fill(ui.PAPER)
-        if self.scene in ("turn", "rolling", "moving", "score"):
+        if self.scene in BOARD_SCENES:
             screens.draw_board_scene(surface, self)
         else:
             draw = getattr(screens, f"draw_{self.scene}", None)

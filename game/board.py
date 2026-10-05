@@ -20,6 +20,7 @@ START_W = 130                                     # Start marker column, left of
 GAP = 24
 TOKEN_R = 28
 TOKEN_STEP = 64
+LANDED_FILL = (0xC6, 0xE6, 0xCF)                  # light green behind the tile the token landed on
 
 
 class BoardLayout:
@@ -71,11 +72,17 @@ class BoardLayout:
 
 
 def draw_board(surface, layout: BoardLayout, content, positions: dict, highlight: int | None,
-               hidden: str | None = None) -> None:
-    """Tiles, Start marker and every token except `hidden` (the one that is hopping)."""
+               hidden: str | None = None, landed: int | None = None) -> None:
+    """Tiles, Start marker and every token except `hidden` (the one that is hopping).
+
+    `landed` is the tile a token just landed on: it is drawn green for a moment.
+    """
     for number, rect in enumerate(layout.tiles, start=1):
         event = content.event_at_tile(number)
-        ui.card(surface, rect, ui.PAPER, ui.LINE, 4)
+        if number == landed:
+            ui.card(surface, rect, LANDED_FILL, ui.GAIN, 8)
+        else:
+            ui.card(surface, rect, ui.PAPER, ui.LINE, 4)
         if number == highlight:
             pygame.draw.rect(surface, ui.INK, rect, 7, border_radius=12)
         ui.text(surface, str(number), "bold", 38, ui.INK, (rect.x + 18, rect.y + 10))
