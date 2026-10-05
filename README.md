@@ -41,6 +41,8 @@ installing anything: https://krisiny.github.io/africa-rising/
 - On the final results screen, press L to download game_log.csv.
 - Esc twice saves the game and says you can close the tab (a web page can't
   close its own tab).
+- Sound starts after the first click. For music and sounds in the web
+  version, use .ogg files (browsers play those most reliably).
 - After changing the game or content.xlsx, rebuild and publish it:
 
   ```

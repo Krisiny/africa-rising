@@ -12,6 +12,7 @@ import io
 import math
 import random
 import struct
+import tempfile
 from pathlib import Path
 
 import pygame
@@ -143,8 +144,16 @@ class Audio:
                 return
         except Exception:
             pass   # broken file: fall back to the placeholder
+        wav = _wav_bytes(_placeholder(name))
         try:
-            self.sounds[name] = pygame.mixer.Sound(file=_wav_bytes(_placeholder(name)))
+            self.sounds[name] = pygame.mixer.Sound(file=wav)
+            return
+        except Exception:
+            pass   # the browser version can't load sounds from memory...
+        try:       # ...but it can from a file, so write the placeholder to a temporary file
+            temp = Path(tempfile.gettempdir()) / f"africa_rising_{name}.wav"
+            temp.write_bytes(wav.getvalue())
+            self.sounds[name] = pygame.mixer.Sound(str(temp))
         except Exception:
             pass
 
