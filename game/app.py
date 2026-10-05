@@ -90,6 +90,7 @@ class App:
         self.menu_open = False
         self.end_armed = 0.0              # touch menu: "End game now" was tapped once
         self.upright = False              # a phone held upright (web version)
+        self.upright_skipped = False      # "Tap to play anyway" was tapped
         self.download_rect = None
         if WEB:
             setup_touch()
@@ -329,7 +330,12 @@ class App:
             return
         if event.type not in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
             return
-        if self.upright or self.lock > 0:
+        if self.upright:                  # "Turn your phone sideways": a tap hides it for good
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.upright, self.upright_skipped = False, True
+                self.lock = INPUT_LOCK
+            return
+        if self.lock > 0:
             return
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -571,7 +577,7 @@ class App:
         self.e_left = max(0.0, self.e_left - dt)
         self.end_armed = max(0.0, self.end_armed - dt)
         if WEB and int(self.scene_time * 2) != int((self.scene_time - dt) * 2):
-            self.upright = held_upright()   # checked twice a second
+            self.upright = held_upright() and not self.upright_skipped   # checked twice a second
         self.audio.update(dt)                 # next background song when one ends
         handler = getattr(self, f"_update_{self.scene}", None)
         if handler is not None:

@@ -90,9 +90,20 @@ def touch_screen() -> bool:
     return bool(_run_js("window.matchMedia('(pointer: coarse)').matches"))
 
 
+# Which way is the phone held? The screen orientation is the most reliable answer
+# (window sizes can be misleading on iPhones), so it is asked first.
+UPRIGHT_JS = """(function () {
+  if (!window.matchMedia('(pointer: coarse)').matches) return false;
+  var type = screen.orientation && screen.orientation.type;
+  if (type) return type.indexOf('portrait') === 0;
+  if (typeof window.orientation === 'number') return window.orientation % 180 === 0;
+  return window.innerHeight > window.innerWidth;
+})()"""
+
+
 def held_upright() -> bool:
-    """True if the browser window is taller than wide (a phone held upright)."""
-    return bool(_run_js("window.innerHeight > window.innerWidth * 1.05"))
+    """True on a phone or tablet that is held upright (never on a computer)."""
+    return bool(_run_js(UPRIGHT_JS))
 
 
 def toggle_fullscreen() -> None:

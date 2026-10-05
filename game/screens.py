@@ -677,5 +677,6 @@ def draw_rotate(surface, app) -> None:
     pygame.draw.circle(phone, ui.WHITE, (130, 430), 12)
     turned = pygame.transform.rotate(phone, -turn)
     surface.blit(turned, turned.get_rect(center=(ui.W // 2, 330)))
-    ui.text(surface, TEXT["rotate_1"], "display", 170, ui.INK, (ui.W // 2, 700), "center")
-    ui.text(surface, TEXT["rotate_2"], "display", 170, ui.INK, (ui.W // 2, 880), "center")
+    ui.text(surface, TEXT["rotate_1"], "display", 170, ui.INK, (ui.W // 2, 660), "center")
+    ui.text(surface, TEXT["rotate_2"], "display", 170, ui.INK, (ui.W // 2, 830), "center")
+    ui.text(surface, TEXT["rotate_skip"], "bold", 60, ui.INK, (ui.W // 2, 990), "center")

@@ -116,6 +116,7 @@ TEXT = {
     "menu_close": "Close menu",
     "rotate_1": "Turn your phone",
     "rotate_2": "sideways",
+    "rotate_skip": "Tap to play anyway",
 
     # Short messages at the bottom of the screen
     "press_e_again": "Press E again to end the game",
