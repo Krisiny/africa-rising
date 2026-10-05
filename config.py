@@ -72,7 +72,7 @@ TEXT = {
     # Choosing the game style (after "How to play")
     "mode_single": "Singleplayer",
     "mode_multi": "Multiplayer",
-    "mode_prompt": "Choose game style",
+    "mode_prompt": "Press 1 or 2",
 
     # Singleplayer: choosing a country
     "country_title": "Choose your country",

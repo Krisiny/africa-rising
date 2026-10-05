@@ -46,7 +46,7 @@ TUMBLE = 0.8              # die tumble (at most 1 s)
 HOP = 0.4                 # per tile: the token moves slowly from tile to tile
 LAND_HOLD = 2.0           # the landing tile is green this long before the question opens
 PICK_HOLD = 1.0           # singleplayer: the chosen country lights up this long
-FINAL_FILL = 2.5          # singleplayer: the progress bar fills this long
+FINAL_FILL = 6.0          # singleplayer: the progress bar fills this long (slow and smooth)
 COUNT_UP = 0.8            # reveal number
 SCORE_ANIM = 0.7          # scoreboard number
 SCORE_HOLD = 0.3          # short pause before the next team
@@ -511,7 +511,7 @@ class App:
 
     def final_progress(self) -> float:
         """Singleplayer final screen: the shown percentage while the bar fills."""
-        t = ui.ease_out(self.scene_time / ui.secs(FINAL_FILL))
+        t = ui.ease_in_out(self.scene_time / ui.secs(FINAL_FILL))   # gentle start and finish
         return self.state.scores[self.state.codes[0]] * t
 
     def _update_final(self, dt) -> None:

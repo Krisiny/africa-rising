@@ -1,6 +1,7 @@
-"""The lion on the singleplayer "Your final progress" screen.
+"""Cartoon animals: the lion on the singleplayer "Your final progress" screen
+and the hippo with headphones on the "SOUND ON!!!" screen.
 
-It reacts to the GDP growth shown on screen while that number counts up:
+The lion reacts to the GDP growth shown on screen while that number counts up:
 
 * gains make its belly bigger; at the maximum it fills the whole screen
 * it looks more and more surprised as it gets fatter
@@ -241,3 +242,98 @@ def _skeleton(surface, home) -> None:
         tooth.midtop = (round(hx - hr * 0.4 + i * hr * 0.2), round(hy + hr * 0.62))
         pygame.draw.rect(surface, (255, 255, 255), tooth)
         pygame.draw.rect(surface, OUTLINE, tooth, 2)
+
+
+# ----- The hippo on the "SOUND ON!!!" screen -----------------------------------------------
+
+HIPPO = (155, 141, 181)
+HIPPO_LIGHT = (198, 186, 216)
+HIPPO_LINE = (70, 55, 90)
+BLUSH = (232, 150, 172)
+PHONES = (214, 69, 65)
+PHONES_DARK = (40, 40, 48)
+BEAT = 0.6                     # seconds per beat (100 beats per minute)
+
+_hippo_head: pygame.Surface | None = None
+
+
+def draw_hippo(surface, t: float, feet=(1600, 960)) -> None:
+    """A hippo with headphones, nodding its head from side to side to the beat."""
+    gx, gy = feet
+    bounce = 8 * abs(math.sin(math.pi * t / BEAT))     # a little bounce on every beat
+    cx, cy = gx, gy - 140 - bounce
+
+    pygame.draw.ellipse(surface, SHADOW, _rect(gx, gy, 300, 28))
+    for side in (-1, 1):                                # stubby legs with toenails
+        leg = _rect(cx + side * 80, gy - 45, 90, 110)
+        pygame.draw.ellipse(surface, HIPPO, leg)
+        pygame.draw.ellipse(surface, HIPPO_LINE, leg, 4)
+        for k in (-1, 0, 1):
+            pygame.draw.ellipse(surface, HIPPO_LIGHT, _rect(cx + side * 80 + k * 22, gy - 8, 18, 12))
+    body = _rect(cx, cy, 300, 250)
+    pygame.draw.ellipse(surface, HIPPO, body)
+    pygame.draw.ellipse(surface, HIPPO_LIGHT, _rect(cx, cy + 30, 190, 160))
+    pygame.draw.ellipse(surface, HIPPO_LINE, body, 5)
+
+    head = _hippo_head_surface()
+    tilt = 20 * math.sin(2 * math.pi * t / (2 * BEAT))    # left on one beat, right on the next
+    turned = pygame.transform.rotate(head, tilt)
+    neck = (cx, cy - 95)
+    surface.blit(turned, turned.get_rect(center=neck))
+    _music_notes(surface, t, (cx + 150, cy - 260))
+
+
+def _hippo_head_surface() -> pygame.Surface:
+    """The head is drawn once, around its neck point (the middle of the surface)."""
+    global _hippo_head
+    if _hippo_head is not None:
+        return _hippo_head
+    s = pygame.Surface((560, 560), pygame.SRCALPHA)
+    cx, cy = 280, 280 - 120                              # head centre, above the neck point
+    for side in (-1, 1):                                 # ears
+        ear = _rect(cx + side * 85, cy - 95, 46, 60)
+        pygame.draw.ellipse(s, HIPPO, ear)
+        pygame.draw.ellipse(s, BLUSH, ear.inflate(-20, -24))
+        pygame.draw.ellipse(s, HIPPO_LINE, ear, 4)
+    skull = _rect(cx, cy - 20, 230, 180)
+    pygame.draw.ellipse(s, HIPPO, skull)
+    pygame.draw.ellipse(s, HIPPO_LINE, skull, 5)
+    snout = _rect(cx, cy + 70, 280, 170)
+    pygame.draw.ellipse(s, HIPPO_LIGHT, snout)
+    pygame.draw.ellipse(s, HIPPO_LINE, snout, 5)
+    for side in (-1, 1):
+        pygame.draw.ellipse(s, HIPPO_LINE, _rect(cx + side * 50, cy + 35, 26, 18))      # nostrils
+        pygame.draw.ellipse(s, BLUSH, _rect(cx + side * 105, cy + 85, 46, 26))          # cheeks
+        eye = _rect(cx + side * 50, cy - 45, 46, 34)                                     # happy closed eyes
+        pygame.draw.arc(s, DARK, eye, math.radians(20), math.radians(160), 6)
+    pygame.draw.arc(s, HIPPO_LINE, _rect(cx, cy + 75, 170, 90), math.radians(200), math.radians(340), 6)
+    for side in (-1, 1):                                 # two little teeth
+        tooth = pygame.Rect(0, 0, 22, 24)
+        tooth.midtop = (cx + side * 22, cy + 116)
+        pygame.draw.rect(s, (255, 255, 255), tooth, border_radius=5)
+        pygame.draw.rect(s, HIPPO_LINE, tooth, 3, border_radius=5)
+    # headphones: a band over the top and a big cup on each side
+    pygame.draw.arc(s, PHONES_DARK, _rect(cx, cy - 10, 290, 270), math.radians(10), math.radians(170), 16)
+    for side in (-1, 1):
+        cup = _rect(cx + side * 140, cy - 5, 62, 110)
+        pygame.draw.rect(s, PHONES, cup, border_radius=26)
+        pygame.draw.rect(s, PHONES_DARK, cup, 5, border_radius=26)
+        pygame.draw.rect(s, PHONES_DARK, cup.inflate(-30, -50), border_radius=10)
+    _hippo_head = ui.prep(s)
+    return _hippo_head
+
+
+def _music_notes(surface, t: float, origin) -> None:
+    """Three notes floating up from the headphones and fading away."""
+    ox, oy = origin
+    for k in range(3):
+        phase = (t / (3 * BEAT) + k / 3) % 1.0
+        x = ox + 50 * phase + 18 * math.sin(phase * 9 + k)
+        y = oy - 230 * phase
+        note = pygame.Surface((70, 90), pygame.SRCALPHA)
+        pygame.draw.ellipse(note, (255, 255, 255), (6, 58, 34, 26))
+        pygame.draw.ellipse(note, PHONES_DARK, (6, 58, 34, 26), 3)
+        pygame.draw.line(note, (255, 255, 255), (37, 70), (37, 10), 7)
+        pygame.draw.polygon(note, (255, 255, 255), [(34, 8), (62, 22), (62, 36), (40, 24)])
+        note.set_alpha(round(255 * (1 - phase)))
+        surface.blit(note, note.get_rect(center=(round(x), round(y))))

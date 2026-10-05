@@ -15,7 +15,7 @@ import config
 from config import TEXT
 from game import ui
 from game.board import LANDED_FILL, draw_board, draw_scoreboard
-from game.mascot import draw_lion
+from game.mascot import draw_hippo, draw_lion
 from game.webstore import WEB
 
 CARD = pygame.Rect(80, 50, 1760, 890)        # event card (the photo shows below it)
@@ -469,13 +469,10 @@ def draw_mode(surface, app) -> None:
 def _mode_static(surface, app) -> None:
     _photo(surface, "mode", shade=90)
     for i, label in enumerate((TEXT["mode_single"], TEXT["mode_multi"])):
-        panel = pygame.Rect(0, 0, 640, 600)
-        panel.center = (ui.W // 2 + (380 if i else -380), 450)
+        panel = pygame.Rect(0, 0, 640, 360)
+        panel.center = (ui.W // 2 + (380 if i else -380), 470)
         ui.card(surface, panel, ui.GAIN, ui.WHITE, 6, 30)
-        ui.text(surface, label, "bold", 70, ui.WHITE, (panel.centerx, panel.y + 60), "midtop")
-        circle = (panel.centerx, panel.y + 360)
-        pygame.draw.circle(surface, ui.WHITE, circle, 160)
-        ui.text(surface, str(i + 1), "display", 240, (0, 0, 0), (circle[0], circle[1] + 8), "center")
+        ui.text(surface, label, "bold", 80, ui.WHITE, panel.center, "center")
 
 
 def draw_country(surface, app) -> None:
@@ -515,10 +512,11 @@ def _country_static(surface, app) -> None:
 # ----- Sound check and credits ----------------------------------------------------------
 
 def draw_sound(surface, app) -> None:
-    """Big speaker and a shaking "SOUND ON!!!" before the game starts."""
+    """Big speaker, a hippo grooving with headphones and a shaking "SOUND ON!!!"."""
     _cached(surface, app, _sound_static)
     on_photo = ui.background("sound") is not None
     t = app.scene_time
+    draw_hippo(surface, t, (1610, 960))
     shake = (9 * math.sin(t * 43), 6 * math.sin(t * 57 + 1.3))
     ui.text(surface, TEXT["sound_title"], "display", 150, ui.WHITE if on_photo else ui.INK,
             (ui.W // 2 + shake[0], 770 + shake[1]), "center")

@@ -177,5 +177,5 @@ is in `content.xlsx`. Translate those two and the game is translated.
 | `game/board.py` | Board layout, tokens and scoreboard |
 | `game/ui.py` | Colors, fonts, text, buttons and effects |
 | `game/audio.py` | Sounds and music |
-| `game/mascot.py` | The lion on the singleplayer end screen |
+| `game/mascot.py` | The lion (singleplayer end screen) and the hippo with headphones (sound check) |
 | `game/webstore.py` | Keeps the autosave in the browser (web version) |
