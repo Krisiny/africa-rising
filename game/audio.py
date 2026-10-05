@@ -3,7 +3,9 @@
 Sounds: assets/sounds/{name}.wav (or .ogg). If a file is missing, a simple
 placeholder made in code (a small WAV file built in memory) is played instead.
 Music: assets/music/{key}.ogg/.wav/.mp3, where key is "title" or a country
-code. Swapping in new files is all it takes; missing music is just silence.
+code. If there is no file for a key, assets/music/background.* plays instead
+(and keeps playing without restarting). Swapping in new files is all it takes;
+with no music files at all the game is simply silent.
 """
 
 from __future__ import annotations
@@ -21,6 +23,8 @@ SOUND_NAMES = ("dice", "step", "good", "bad", "best", "tick", "win")
 RATE = 44100
 SOUND_VOLUME = 0.8
 FADE_MS = 500
+BACKGROUND = "background"      # assets/music/background.mp3: plays when nothing more specific exists
+MUSIC_TYPES = (".ogg", ".wav", ".mp3")
 
 
 def pre_init() -> None:
@@ -124,7 +128,7 @@ class Audio:
         self.music_volume = max(0.0, min(1.0, float(music_volume)))
         self.muted = not sound_on
         self.sounds: dict[str, pygame.mixer.Sound] = {}
-        self.current: str | None = None      # music key that is playing
+        self.current: Path | None = None     # music file that is playing
         self.ok = False
         try:
             if not pygame.mixer.get_init():
@@ -169,12 +173,21 @@ class Audio:
             pass
 
     def music(self, key: str | None) -> None:
-        """Loop the music for `key` ("title" or a country code). None = silence."""
-        if not self.ok or key == self.current:
+        """Loop the music for `key` ("title" or a country code). None = silence.
+
+        Without a file for `key`, the background song plays. The same file is
+        never restarted, so the background song runs on from screen to screen.
+        """
+        if not self.ok:
             return
-        self.current = key
+        folder = self.assets / "music"
+        path = None
+        if key:
+            path = _find(folder, key, MUSIC_TYPES) or _find(folder, BACKGROUND, MUSIC_TYPES)
+        if path == self.current:
+            return
+        self.current = path
         try:
-            path = _find(self.assets / "music", key, (".ogg", ".wav", ".mp3")) if key else None
             if path is None:
                 pygame.mixer.music.fadeout(FADE_MS)
                 return
