@@ -123,13 +123,12 @@ def draw_board_scene(surface, app) -> None:
     ui.text(surface, TEXT["round"].format(round=state.display_round, rounds=state.rounds),
             "bold", 42, ui.INK, (ui.W // 2, 56), "center")
 
-    rolling = app.scene in ("rolling", "rolled", "moving")
-    mover = app.mover if rolling else None
+    mover = app.mover if app.scene in ("rolling", "moving") else None
     current = app.turn_team()
     positions = dict(state.positions)
-    if app.scene in ("rolling", "rolled"):
-        positions[mover["code"]] = mover["start"]     # don't give away the roll early
-    highlight = None if rolling or app.scene == "landed" else (state.positions.get(current) or None)
+    if app.scene == "rolling":
+        positions[mover["code"]] = mover["start"]     # stays put while the die rolls
+    highlight = None if app.scene in ("rolling", "moving", "landed") else (state.positions.get(current) or None)
     landed = state.tile if app.scene == "landed" else None
     draw_board(surface, app.layout, app.content, positions, highlight,
                hidden=mover["code"] if mover and app.scene == "moving" else None, landed=landed)
@@ -145,7 +144,7 @@ def draw_board_scene(surface, app) -> None:
 def _draw_middle(surface, app, code: str) -> None:
     box = app.layout.center
     cx = box.centerx
-    if app.scene in ("rolling", "rolled", "moving", "landed"):
+    if app.scene in ("rolling", "moving", "landed"):
         face = app.die_face
     else:
         face = app.state.last_roll or 1

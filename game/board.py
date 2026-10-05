@@ -20,7 +20,7 @@ START_W = 130                                     # Start marker column, left of
 GAP = 24
 TOKEN_R = 28
 TOKEN_STEP = 64
-LANDED_FILL = (0xC6, 0xE6, 0xCF)                  # light green behind the tile the token landed on
+LANDED_FILL = (0xB5, 0xDD, 0xC0)                  # green behind the tile the token just landed on
 
 
 class BoardLayout:
@@ -75,7 +75,7 @@ def draw_board(surface, layout: BoardLayout, content, positions: dict, highlight
                hidden: str | None = None, landed: int | None = None) -> None:
     """Tiles, Start marker and every token except `hidden` (the one that is hopping).
 
-    `landed` is the tile a token just landed on: it is drawn green for a moment.
+    `landed` is the tile a token just stopped on: it turns green before the question opens.
     """
     for number, rect in enumerate(layout.tiles, start=1):
         event = content.event_at_tile(number)
