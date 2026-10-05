@@ -12,7 +12,7 @@ SHOW_COUNTRY_CARD = True
 FULLSCREEN = True
 DISPLAY_INDEX = 0        # which screen to use if the projector is a second screen
 SOUND_ON = True
-MUSIC_VOLUME = 0.25       # background music, quieter than the sound effects (0 to 1)
+MUSIC_VOLUME = 0.3        # background music, quieter than the sound effects (0 to 1)
 CONTENT_FILE = "content.xlsx"
 ANIMATION_SPEED = 1.0    # 2.0 = twice as fast
 

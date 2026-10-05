@@ -3,9 +3,11 @@
 Sounds: assets/sounds/{name}.wav (or .ogg). If a file is missing, a simple
 placeholder made in code (a small WAV file built in memory) is played instead.
 Music: assets/music/{key}.ogg/.wav/.mp3, where key is "title" or a country
-code. If there is no file for a key, assets/music/background.* plays instead
-(and keeps playing without restarting). Swapping in new files is all it takes;
-with no music files at all the game is simply silent.
+code. If there is no file for a key, the background playlist plays instead:
+every file whose name starts with "background" (background1.mp3,
+background2.mp3, ...), one after another in name order, then from the start
+again. It keeps running from screen to screen without restarting.
+Swapping in new files is all it takes; with no music files the game is silent.
 """
 
 from __future__ import annotations
@@ -23,8 +25,9 @@ SOUND_NAMES = ("dice", "step", "good", "bad", "best", "tick", "win")
 RATE = 44100
 SOUND_VOLUME = 0.8
 FADE_MS = 500
-BACKGROUND = "background"      # assets/music/background.mp3: plays when nothing more specific exists
+BACKGROUND = "background"      # background1.mp3, background2.mp3, ... form the background playlist
 MUSIC_TYPES = (".ogg", ".wav", ".mp3")
+MIN_TRACK_TIME = 2.0           # a song counts as finished only after it has played this long
 
 
 def pre_init() -> None:
@@ -118,6 +121,22 @@ def _find(folder: Path, stem: str, suffixes: tuple[str, ...]) -> Path | None:
     return None
 
 
+def _playlist(folder: Path) -> list[Path]:
+    """Background songs (names starting with "background"), in name order.
+
+    If the same song exists in several formats, the one earliest in MUSIC_TYPES wins.
+    """
+    try:
+        files = [p for p in folder.iterdir()
+                 if p.is_file() and p.stem.lower().startswith(BACKGROUND) and p.suffix.lower() in MUSIC_TYPES]
+    except OSError:
+        return []
+    best: dict[str, Path] = {}
+    for p in sorted(files, key=lambda p: MUSIC_TYPES.index(p.suffix.lower())):
+        best.setdefault(p.stem.lower(), p)
+    return [best[stem] for stem in sorted(best)]
+
+
 # ----- The Audio class ----------------------------------------------------------
 
 class Audio:
@@ -128,7 +147,10 @@ class Audio:
         self.music_volume = max(0.0, min(1.0, float(music_volume)))
         self.muted = not sound_on
         self.sounds: dict[str, pygame.mixer.Sound] = {}
-        self.current: Path | None = None     # music file that is playing
+        self.current: Path | str | None = None   # music file playing, or BACKGROUND for the playlist
+        self.playlist = _playlist(self.assets / "music")
+        self.track = 0                            # which playlist song is playing
+        self.track_time = 0.0                     # how long it has been playing (seconds)
         self.ok = False
         try:
             if not pygame.mixer.get_init():
@@ -175,25 +197,46 @@ class Audio:
     def music(self, key: str | None) -> None:
         """Loop the music for `key` ("title" or a country code). None = silence.
 
-        Without a file for `key`, the background song plays. The same file is
-        never restarted, so the background song runs on from screen to screen.
+        Without a file for `key`, the background playlist plays. Music that is
+        already playing is never restarted, so it runs on from screen to screen.
         """
         if not self.ok:
             return
-        folder = self.assets / "music"
-        path = None
-        if key:
-            path = _find(folder, key, MUSIC_TYPES) or _find(folder, BACKGROUND, MUSIC_TYPES)
-        if path == self.current:
+        want = _find(self.assets / "music", key, MUSIC_TYPES) if key else None
+        if want is None and key and self.playlist:
+            want = BACKGROUND
+        if want == self.current:
             return
-        self.current = path
-        try:
-            if path is None:
+        self.current = want
+        if want is None:
+            try:
                 pygame.mixer.music.fadeout(FADE_MS)
-                return
+            except Exception:
+                pass
+        elif want == BACKGROUND:
+            self._start(self.playlist[self.track], loops=0)       # once; update() moves on
+        else:
+            self._start(want, loops=-1)                            # a single loop, forever
+
+    def update(self, dt: float) -> None:
+        """Call every frame: starts the next playlist song when one has finished."""
+        if not self.ok or self.current != BACKGROUND:
+            return
+        self.track_time += dt
+        try:
+            finished = self.track_time > MIN_TRACK_TIME and not pygame.mixer.music.get_busy()
+        except Exception:
+            return
+        if finished:
+            self.track = (self.track + 1) % len(self.playlist)
+            self._start(self.playlist[self.track], loops=0)
+
+    def _start(self, path: Path, loops: int) -> None:
+        self.track_time = 0.0
+        try:
             pygame.mixer.music.load(str(path))
             pygame.mixer.music.set_volume(0.0 if self.muted else self.music_volume)
-            pygame.mixer.music.play(-1, fade_ms=FADE_MS)
+            pygame.mixer.music.play(loops, fade_ms=FADE_MS)
         except Exception:
             pass
 

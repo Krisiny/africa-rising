@@ -90,7 +90,7 @@ def convert_audio(folder: Path) -> bool:
             print(f"Converting {src.relative_to(folder)} to .ogg for the browser...")
             with soundfile.SoundFile(src) as f_in, soundfile.SoundFile(
                     out, "w", samplerate=f_in.samplerate, channels=f_in.channels,
-                    format="OGG", subtype="VORBIS", compression_level=0.5) as f_out:
+                    format="OGG", subtype="VORBIS", compression_level=0.65) as f_out:   # ~125 kbit/s
                 for block in f_in.blocks(blocksize=8192, dtype="float32"):   # small blocks: large ones crash
                     f_out.write(block)
         src.unlink()

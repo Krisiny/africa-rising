@@ -393,6 +393,7 @@ class App:
         self.toast_left = max(0.0, self.toast_left - dt)
         self.esc_left = max(0.0, self.esc_left - dt)
         self.e_left = max(0.0, self.e_left - dt)
+        self.audio.update(dt)                 # next background song when one ends
         handler = getattr(self, f"_update_{self.scene}", None)
         if handler is not None:
             handler(dt)

@@ -106,9 +106,11 @@ Everything in `assets/` is optional; the game runs without it.
 
 - `assets/sounds/`: dice.wav, step.wav, good.wav, bad.wav, best.wav, tick.wav,
   win.wav (.ogg also works). Missing sounds are replaced by simple beeps.
-- `assets/music/background.mp3`: the background song. It plays quietly
-  throughout the game (volume: MUSIC_VOLUME in config.py) wherever there is
-  no more specific music file.
+- `assets/music/background1.mp3`, `background2.mp3`, `background3.mp3`: the
+  background playlist. The songs play one after another in name order, then
+  start again, quietly throughout the game (volume: MUSIC_VOLUME in
+  config.py). To add, remove or reorder songs, rename or add files that
+  start with "background" (1 to 9 keeps the order simple).
 - `assets/music/`: one loop per country named by its code (NG, EG, KE, ZA, CD)
   plus `title` for the title and final screens, as .ogg, .wav or .mp3, e.g.
   `KE.ogg`. Drop the files in; nothing else to change. Each team's loop plays
