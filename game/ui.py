@@ -48,6 +48,7 @@ _text_cache: dict[tuple, pygame.Surface] = {}
 _guilloche_cache: dict[tuple[int, int], pygame.Surface] = {}
 _stamp_cache: dict[tuple, pygame.Surface] = {}
 _flag_cache: dict[tuple[str, int], pygame.Surface | None] = {}
+_background_cache: dict[str, pygame.Surface | None] = {}
 _minus_ok: bool | None = None
 
 _TEXT_CACHE_MAX = 600
@@ -162,6 +163,7 @@ def init(assets_dir: Path) -> None:
     _guilloche_cache.clear()
     _stamp_cache.clear()
     _flag_cache.clear()
+    _background_cache.clear()
     _minus_ok = None
     files = _font_dir_files(_assets)
     for style in ("display", "text", "bold"):
@@ -235,11 +237,17 @@ def render(s, style: str, size: int, color) -> pygame.Surface:
     return surf
 
 
-def text(surface, s, style, size, color, pos, anchor="topleft") -> pygame.Rect:
-    """Draw one line of text; `pos` is where the rect's `anchor` point goes."""
+def text(surface, s, style, size, color, pos, anchor="topleft", alpha=255) -> pygame.Rect:
+    """Draw one line of text; `pos` is where the rect's `anchor` point goes.
+
+    `alpha` below 255 makes the text see-through (0 = invisible), for fading.
+    """
     surf = render(s, style, size, color)
     rect = surf.get_rect()
     setattr(rect, anchor, (round(pos[0]), round(pos[1])))
+    if alpha < 255:
+        surf = surf.copy()
+        surf.set_alpha(max(0, int(alpha)))
     surface.blit(surf, rect)
     return rect
 
@@ -664,6 +672,43 @@ class Confetti:
             pts = [(x + dx * ca - dy * sa, y + dx * sa + dy * ca)
                    for dx, dy in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh))]
             pygame.draw.polygon(surface, color, pts)
+
+
+# ---------------------------------------------------------------------------
+# Background photos and pulsing prompts
+# ---------------------------------------------------------------------------
+
+def background(name: str) -> pygame.Surface | None:
+    """assets/backgrounds/{name}.jpg (or .png) filling the whole canvas, or None.
+
+    Photos of another size are scaled to cover the screen (edges cropped),
+    like a picture background in PowerPoint. Cached after the first load.
+    """
+    if name in _background_cache:
+        return _background_cache[name]
+    surf = None
+    path = _find_file(_assets / "backgrounds", name, (".jpg", ".jpeg", ".png"))
+    if path is not None:
+        try:
+            img = pygame.image.load(str(path))
+            scale = max(W / img.get_width(), H / img.get_height())
+            size = (max(W, round(img.get_width() * scale)), max(H, round(img.get_height() * scale)))
+            if size != img.get_size():
+                img = pygame.transform.smoothscale(img, size)
+            crop = pygame.Rect(0, 0, W, H)
+            crop.center = (size[0] // 2, size[1] // 2)
+            surf = img.subsurface(crop).copy()
+            if pygame.display.get_init() and pygame.display.get_surface() is not None:
+                surf = surf.convert()
+        except Exception:
+            surf = None
+    _background_cache[name] = surf
+    return surf
+
+
+def pulse(t: float, period: float = 1.0) -> int:
+    """Alpha (0..255) that fades out and back in smoothly once per `period` seconds."""
+    return round(255 * (0.5 + 0.5 * math.cos(2 * math.pi * t / period)))
 
 
 # ---------------------------------------------------------------------------

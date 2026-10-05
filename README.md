@@ -104,6 +104,10 @@ shows the same list on screen instead of starting if something is wrong.
 
 Everything in `assets/` is optional; the game runs without it.
 
+- `assets/backgrounds/`: `title.jpg` (title screen) and `howto.jpg` (how to
+  play), full-screen photos. Replace them with any photo; other sizes are
+  cropped to fill the screen. Without them those screens are plain paper.
+
 - `assets/sounds/`: dice.wav, step.wav, good.wav, bad.wav, best.wav, tick.wav,
   win.wav (.ogg also works). Missing sounds are replaced by simple beeps.
 - `assets/music/background1.mp3`, `background2.mp3`, `background3.mp3`: the

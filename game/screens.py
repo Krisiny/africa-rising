@@ -49,13 +49,71 @@ def draw_resume(surface, app) -> None:
     ui.text(surface, TEXT["resume_prompt"], "text", 46, ui.INK, (ui.W // 2, 560), "center")
 
 
+def _photo(surface, name: str, shade: int = 0) -> bool:
+    """Full-screen background photo (assets/backgrounds/{name}.jpg) with an optional dark tint.
+
+    Returns False (and leaves the plain paper background) if the photo is missing.
+    """
+    photo = ui.background(name)
+    if photo is None:
+        return False
+    surface.blit(photo, (0, 0))
+    if shade:
+        ui.card(surface, surface.get_rect(), (0, 0, 0, shade), None, 0, 0)
+    return True
+
+
+def _pulsing_button(surface, label: str, center, t: float, on_photo: bool) -> None:
+    """A rounded button with a label that fades out and back in every half second."""
+    color = ui.WHITE if on_photo else ui.INK
+    text_surf = ui.render(label, "bold", 40, color)
+    box = text_surf.get_rect().inflate(90, 34)
+    button = pygame.Surface(box.size, pygame.SRCALPHA)
+    shape = button.get_rect()
+    if on_photo:
+        pygame.draw.rect(button, (*ui.INK, 200), shape, border_radius=box.h // 2)
+    pygame.draw.rect(button, color, shape, 3, border_radius=box.h // 2)
+    button.blit(text_surf, text_surf.get_rect(center=shape.center))
+    button.set_alpha(ui.pulse(t))
+    surface.blit(button, button.get_rect(center=(round(center[0]), round(center[1]))))
+
+
+def _cached(surface, app, draw_static) -> None:
+    """Draw the parts of a screen that don't move only once, then reuse them.
+
+    Full-screen photos with see-through layers are slow to draw in the browser,
+    so they are drawn into app.backdrop when the screen opens.
+    """
+    if app.backdrop is None:
+        app.backdrop = pygame.Surface((ui.W, ui.H))
+        app.backdrop.fill(ui.PAPER)
+        draw_static(app.backdrop, app)
+    surface.blit(app.backdrop, (0, 0))
+
+
 def draw_title(surface, app) -> None:
-    ui.text(surface, config.GAME_TITLE, "display", 140, ui.INK, (ui.W // 2, 420), "center")
-    ui.text(surface, TEXT["subtitle"], "text", 46, ui.INK, (ui.W // 2, 540), "center")
-    _prompt(surface, TEXT["press_start"], 900)
+    _cached(surface, app, _title_static)
+    on_photo = ui.background("title") is not None
+    _pulsing_button(surface, TEXT["press_start"], (ui.W // 2, 900), app.scene_time, on_photo)
+
+
+def _title_static(surface, app) -> None:
+    on_photo = _photo(surface, "title", shade=70)
+    color = ui.WHITE if on_photo else ui.INK
+    ui.text(surface, config.GAME_TITLE, "display", 140, color, (ui.W // 2, 420), "center")
+    ui.text(surface, TEXT["subtitle"], "text", 46, color, (ui.W // 2, 540), "center")
 
 
 def draw_howto(surface, app) -> None:
+    _cached(surface, app, _howto_static)
+    on_photo = ui.background("howto") is not None
+    _pulsing_button(surface, TEXT["how_continue"], (ui.W // 2, 900 if on_photo else 1000),
+                    app.scene_time, on_photo)
+
+
+def _howto_static(surface, app) -> None:
+    if _photo(surface, "howto"):      # the text sits on a see-through paper card so it stays readable
+        ui.card(surface, pygame.Rect(110, 40, 1700, 745), (*ui.PAPER, 225), ui.INK, 3, 18)
     x = 160
     ui.text(surface, TEXT["how_title"], "display", 72, ui.INK, (x, 80))
     steps = [TEXT["how_step_1"],
@@ -74,7 +132,6 @@ def draw_howto(surface, app) -> None:
     for i, code in enumerate(app.content.codes):
         col, row = i % 3, i // 3
         _country_line(surface, app, code, (x + col * 540, y + row * 80))
-    _prompt(surface, TEXT["how_continue"])
 
 
 def draw_error(surface, app) -> None:
