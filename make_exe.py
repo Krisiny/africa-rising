@@ -42,6 +42,7 @@ def main() -> int:
         "--exclude-module", "pygbag",
         "--exclude-module", "numpy",      # pygame can use it, but this game doesn't
         "--exclude-module", "soundfile",  # only needed by make_web.py
+        "--exclude-module", "PIL",        # Pillow: used only to prepare photos, not by the game
         "--distpath", str(DIST),
         "--workpath", str(WORK),
         "--specpath", str(WORK),
