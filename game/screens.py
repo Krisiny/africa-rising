@@ -14,7 +14,7 @@ import pygame
 import config
 from config import TEXT
 from game import ui
-from game.board import draw_board, draw_scoreboard
+from game.board import LANDED_FILL, draw_board, draw_scoreboard
 from game.webstore import WEB
 
 CARD = pygame.Rect(80, 50, 1760, 890)        # event card (the photo shows below it)
@@ -377,6 +377,9 @@ def draw_reveal(surface, app) -> None:
 # ----- Final results ------------------------------------------------------------------
 
 def draw_final(surface, app) -> None:
+    if app.single():
+        _draw_final_single(surface, app)
+        return
     app.confetti.draw(surface)       # behind the text, so names stay readable
     state = app.state
     ranking = state.ranking()
@@ -409,6 +412,100 @@ def draw_final(surface, app) -> None:
     if WEB:
         _prompt(surface, TEXT["download_log"], 915)
     _pulsing_button(surface, TEXT["final_continue"], (ui.W // 2, 1005), app.scene_time, False)
+
+
+def _draw_final_single(surface, app) -> None:
+    """Singleplayer: one country's progress as a number and a bar that fills from the middle."""
+    app.confetti.draw(surface)
+    state = app.state
+    code = state.codes[0]
+    country = app.content.country(code)
+    ui.text(surface, TEXT["single_final_title"], "display", 110, ui.INK, (ui.W // 2, 120), "center")
+    label_w = 76 + ui.font("bold", 52).size(country.name)[0]
+    _country_line(surface, app, code, (ui.W // 2 - label_w // 2, 250), 52, "bold")
+
+    shown = app.final_progress()
+    value = round(shown)
+    num = ui.text(surface, ui.signed_pct(value), "display", 160, ui.value_color(value),
+                  (ui.W // 2, 420), "center")
+    ui.trend_mark(surface, (num.left - 60, 420), 80, value)
+
+    # the bar: zero in the middle, green fills to the right, red to the left
+    scale = state.rounds * max(abs(v) for r in app.content.results.values() for v in r.values)
+    bar = pygame.Rect(260, 560, 1400, 90)
+    half = bar.w // 2
+    pygame.draw.rect(surface, ui.WHITE, bar, border_radius=45)
+    fill = min(half, round(half * abs(shown) / max(1, scale)))
+    if fill > 0:
+        part = pygame.Rect(bar.centerx if shown > 0 else bar.centerx - fill, bar.y, fill, bar.h)
+        pygame.draw.rect(surface, ui.GAIN if shown > 0 else ui.LOSS, part,
+                         border_top_right_radius=45 if shown > 0 else 0,
+                         border_bottom_right_radius=45 if shown > 0 else 0,
+                         border_top_left_radius=0 if shown > 0 else 45,
+                         border_bottom_left_radius=0 if shown > 0 else 45)
+    pygame.draw.rect(surface, ui.INK, bar, 5, border_radius=45)
+    pygame.draw.line(surface, ui.INK, (bar.centerx, bar.y - 18), (bar.centerx, bar.bottom + 18), 5)
+    for x, v in ((bar.left, -scale), (bar.centerx, 0), (bar.right, scale)):
+        ui.text(surface, ui.signed_pct(v), "bold", 38, ui.value_color(v), (x, bar.bottom + 28), "midtop")
+
+    if WEB:
+        _prompt(surface, TEXT["download_log"], 915)
+    _pulsing_button(surface, TEXT["final_continue"], (ui.W // 2, 1005), app.scene_time, False)
+
+
+# ----- Game style and country choice ------------------------------------------------------
+
+def draw_mode(surface, app) -> None:
+    """Two green panels: 1 = singleplayer, 2 = multiplayer."""
+    _cached(surface, app, _mode_static)
+    on_photo = ui.background("mode") is not None
+    _pulsing_button(surface, TEXT["mode_prompt"], (ui.W // 2, 975), app.scene_time, on_photo)
+
+
+def _mode_static(surface, app) -> None:
+    _photo(surface, "mode", shade=90)
+    for i, label in enumerate((TEXT["mode_single"], TEXT["mode_multi"])):
+        panel = pygame.Rect(0, 0, 640, 600)
+        panel.center = (ui.W // 2 + (380 if i else -380), 450)
+        ui.card(surface, panel, ui.GAIN, ui.WHITE, 6, 30)
+        ui.text(surface, label, "bold", 70, ui.WHITE, (panel.centerx, panel.y + 60), "midtop")
+        circle = (panel.centerx, panel.y + 360)
+        pygame.draw.circle(surface, ui.WHITE, circle, 160)
+        ui.text(surface, str(i + 1), "display", 240, (0, 0, 0), (circle[0], circle[1] + 8), "center")
+
+
+def draw_country(surface, app) -> None:
+    """Singleplayer: one card per country, chosen with its number."""
+    _cached(surface, app, _country_static)
+    if app.player is None:
+        on_photo = ui.background("country") is not None
+        prompt = TEXT["country_prompt"].format(count=len(app.all_content.countries))
+        _pulsing_button(surface, prompt, (ui.W // 2, 975), app.scene_time, on_photo)
+
+
+def _country_static(surface, app) -> None:
+    on_photo = _photo(surface, "country", shade=90)
+    ui.text(surface, TEXT["country_title"], "display", 100, ui.WHITE if on_photo else ui.INK,
+            (ui.W // 2, 130), "center")
+    countries = app.all_content.countries
+    gap = 30
+    width = min(330, (1800 - gap * (len(countries) - 1)) // len(countries))
+    x = (ui.W - width * len(countries) - gap * (len(countries) - 1)) // 2
+    for number, country in enumerate(countries, start=1):
+        card = pygame.Rect(x, 250, width, 560)
+        picked = country.code == app.player
+        if picked:
+            ui.card(surface, card, LANDED_FILL, ui.GAIN, 10, 24)
+        else:
+            ui.card(surface, card, ui.PAPER, ui.INK, 4, 24)
+        ui.text(surface, str(number), "display", 130, (0, 0, 0), (card.centerx, card.y + 30), "midtop")
+        ui.disc(surface, (card.centerx, card.y + 300), 70, country.color, country.code)
+        flag = ui.flag(country.code, 50)
+        if flag is not None:
+            surface.blit(flag, flag.get_rect(midtop=(card.centerx, card.y + 380)))
+        for i, line in enumerate(ui.wrap(country.name, "bold", 42, width - 30)[:2]):
+            ui.text(surface, line, "bold", 42, ui.INK, (card.centerx, card.y + 450 + i * 46), "midtop")
+        x += width + gap
 
 
 # ----- Sound check and credits ----------------------------------------------------------

@@ -84,6 +84,11 @@ class Content:
     def result(self, event_id: str, code: str) -> Result:
         return self.results[(event_id, code)]
 
+    def only(self, code: str) -> Content:
+        """The same content with just one country (singleplayer)."""
+        return Content([self.country(code)], self.events,
+                       {key: r for key, r in self.results.items() if key[1] == code})
+
     def to_json(self) -> dict:
         """Plain data for content.json (used by the web version, which has no Excel reader)."""
         return {

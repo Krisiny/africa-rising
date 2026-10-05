@@ -212,6 +212,23 @@ def _scenarios(content: Content, c: Checker, folder: Path) -> None:
     state.roll(1)
     c.check(state.undo() is None, "undo after the next roll must do nothing")
 
+    # Singleplayer: one country, 6 rounds, saved and loaded with the one-country content.
+    code = content.codes[2]
+    solo = content.only(code)
+    c.check(solo.codes == [code] and all(k[1] == code for k in solo.results), "one-country content")
+    state = GameState(solo, 6)
+    single_save = folder / "single.json"
+    for turn in range(6):
+        state.roll(1 + turn % 6)
+        state.choose(turn % 3)
+        persist(state, single_save, folder / "single.csv")
+        if turn == 3:
+            loaded = load_game(single_save, solo)
+            c.check(loaded is not None and loaded.to_dict() == state.to_dict(), "singleplayer save/load")
+            c.check(load_game(single_save, content) is None, "singleplayer save must not load as multiplayer")
+    c.check(state.phase == "over" and len(state.history) == 6, "singleplayer plays 6 turns")
+    c.check(state.scores[code] == sum(r.delta for r in state.history), "singleplayer score adds up")
+
     # Bad save files are refused.
     bad = folder / "bad.json"
     bad.write_text("{not json", encoding="utf-8")

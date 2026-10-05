@@ -6,7 +6,8 @@ the game, so keep them, but you can move them around in the sentence.
 """
 
 GAME_TITLE = "Africa Rising"
-ROUNDS = 3
+ROUNDS = 3               # multiplayer: every team plays this many times
+SINGLE_ROUNDS = 6        # singleplayer: one country plays this many turns
 TIMER_SECONDS = 0        # seconds to answer; 0 = no timer (unlimited time)
 SHOW_COUNTRY_CARD = True
 FULLSCREEN = True
@@ -67,6 +68,18 @@ TEXT = {
     "download_log": "Press L to download the game log",
     "log_downloaded": "Game log downloaded",
     "log_missing": "No game log yet",
+
+    # Choosing the game style (after "How to play")
+    "mode_single": "Singleplayer",
+    "mode_multi": "Multiplayer",
+    "mode_prompt": "Choose game style",
+
+    # Singleplayer: choosing a country
+    "country_title": "Choose your country",
+    "country_prompt": "Press 1 to {count} to choose",
+
+    # Singleplayer: final screen
+    "single_final_title": "Your final progress",
 
     # Sound check before the game starts
     "sound_title": "SOUND ON!!!",

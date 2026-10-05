@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pygame
 
-SOUND_NAMES = ("dice", "step", "good", "bad", "best", "tick", "win")
+SOUND_NAMES = ("dice", "step", "good", "bad", "best", "tick", "win", "select")
 RATE = 44100
 SOUND_VOLUME = 0.8
 FADE_MS = 500
@@ -86,6 +86,8 @@ def _placeholder(name: str) -> list[float]:
         return _notes([523, 659, 784], 0.2)
     if name == "tick":
         return _tone(1200, 0.05, 0.3)
+    if name == "select":
+        return _notes([784, 1175], 0.16) + _tone(1568, 0.3)
     if name == "win":
         return _notes([523, 659, 784], 0.18) + _tone(1047, 0.66)
     return []

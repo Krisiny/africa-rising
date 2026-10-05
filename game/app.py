@@ -1,8 +1,9 @@
 """The game window: scenes, keys, timer and the main loop.
 
 Scenes, in the order a game goes through them:
-  resume -> title -> howto -> sound -> turn -> rolling -> moving -> landed -> event -> reveal
-  -> score -> turn (next team) ... -> final -> credits -> title
+  resume -> title -> howto -> mode -> (singleplayer: country ->) sound -> turn -> rolling
+  -> moving -> landed -> event -> reveal -> score -> turn (next team) ... -> final -> credits
+  -> title
 plus "error" when content.xlsx has a problem and "crash" as a last-resort net.
 
 All timing goes through update(dt), so tests can drive the App without a window.
@@ -16,6 +17,7 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 os.environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
 
 import asyncio
+import json
 import random
 import sys
 import time
@@ -43,6 +45,8 @@ TOAST_TIME = 2.0
 TUMBLE = 0.8              # die tumble (at most 1 s)
 HOP = 0.4                 # per tile: the token moves slowly from tile to tile
 LAND_HOLD = 2.0           # the landing tile is green this long before the question opens
+PICK_HOLD = 1.0           # singleplayer: the chosen country lights up this long
+FINAL_FILL = 2.5          # singleplayer: the progress bar fills this long
 COUNT_UP = 0.8            # reveal number
 SCORE_ANIM = 0.7          # scoreboard number
 SCORE_HOLD = 0.3          # short pause before the next team
@@ -79,7 +83,11 @@ class App:
         self.show_help = False
         self.show_card = config.SHOW_COUNTRY_CARD
 
-        self.content = None
+        self.content = None           # what the current game uses (one country in singleplayer)
+        self.all_content = None       # everything in content.xlsx
+        self.saved_content = None
+        self.player: str | None = None   # singleplayer: the chosen country code
+        self.picked_at = 0.0
         self.problems = []
         self.state: GameState | None = None
         self.saved: GameState | None = None
@@ -97,7 +105,7 @@ class App:
         self.backdrop = None
 
         try:
-            self.content = load_content(self.content_path)
+            self.content = self.all_content = load_content(self.content_path)
         except ContentError as err:
             self.problems = err.problems
             self.set_scene("error")
@@ -105,7 +113,7 @@ class App:
         self.layout = BoardLayout(self.content.n_tiles)
         restore(self.save_path)
         restore(self.log_path)
-        self.saved = load_game(self.save_path, self.content)
+        self.saved = self._load_saved()
         self.set_scene("resume" if self.saved else "title")
 
     # ----- Small helpers ------------------------------------------------------------
@@ -115,7 +123,7 @@ class App:
         self.scene_time = 0.0
         self.backdrop = None          # redrawn once for the new screen (see screens._backdrop)
         self.lock = INPUT_LOCK
-        if name in ("resume", "title", "howto", "sound", "final", "credits"):
+        if name in ("resume", "title", "howto", "mode", "country", "sound", "final", "credits"):
             self.audio.music("title")
         elif name in GAME_SCENES:
             self.audio.music(self.turn_team())
@@ -130,6 +138,25 @@ class App:
         if self.scene in ("reveal", "score") and self.record is not None:
             return self.record.code
         return self.state.current_team
+
+    def single(self) -> bool:
+        """True while a singleplayer game is on (one country)."""
+        return self.state is not None and len(self.state.codes) == 1
+
+    def _load_saved(self) -> GameState | None:
+        """The unfinished game in savegame.json (multiplayer or singleplayer), or None."""
+        self.saved_content = self.all_content
+        state = load_game(self.save_path, self.all_content)
+        if state is not None:
+            return state
+        try:          # a singleplayer save lists just one country
+            codes = json.loads(self.save_path.read_text(encoding="utf-8"))["codes"]
+        except Exception:
+            return None
+        if isinstance(codes, list) and len(codes) == 1 and codes[0] in self.all_content.codes:
+            self.saved_content = self.all_content.only(codes[0])
+            return load_game(self.save_path, self.saved_content)
+        return None
 
     def show_toast(self, message: str) -> None:
         self.toast, self.toast_left = message, TOAST_TIME
@@ -165,12 +192,18 @@ class App:
 
     def new_game(self) -> None:
         delete_save(self.save_path)
-        self.state = GameState(self.content, config.ROUNDS)
+        if self.player:       # singleplayer: only the chosen country, more rounds
+            self.content = self.all_content.only(self.player)
+            self.state = GameState(self.content, config.SINGLE_ROUNDS)
+        else:
+            self.content = self.all_content
+            self.state = GameState(self.content, config.ROUNDS)
         self.shown_scores = dict(self.state.scores)
         self.save()
         self.set_scene("turn")
 
     def resume(self) -> None:
+        self.content = self.saved_content
         self.state, self.saved = self.saved, None
         self.shown_scores = dict(self.state.scores)
         if self.state.phase == "choose":
@@ -243,15 +276,24 @@ class App:
         self.shown_scores = dict(self.state.scores)
         colors = [self.content.country(c).color for c in self.state.winners()]
         self.confetti = ui.Confetti(colors)
-        self.confetti.burst((ui.W // 2, 260))
-        self.audio.play("win")
+        if self.single() and self.state.scores[self.state.codes[0]] <= 0:
+            self.audio.play("bad")            # no party for a loss
+        else:
+            self.confetti.burst((ui.W // 2, 260))
+            self.audio.play("win")
         self.set_scene("final")
+
+    def back_to_start(self) -> None:
+        """After the credits (or a quit on the web): ready for a new game."""
+        self.state = None
+        self.player = None
+        self.content = self.all_content
 
     def quit(self) -> None:
         if self.state is not None and self.state.phase != "finished":
             self.save()
         if WEB:      # a web page can't close its own tab: say it's safe to close it
-            self.state = None
+            self.back_to_start()
             self.toast_left = 0.0         # hide "Press Esc again to quit"
             self.set_scene("closed")
             return
@@ -335,7 +377,7 @@ class App:
 
     def _key_closed(self, key) -> None:
         if key == pygame.K_r:
-            self.saved = load_game(self.save_path, self.content) if self.content else None
+            self.saved = self._load_saved() if self.all_content else None
             self.set_scene("resume" if self.saved else "title")
 
     def _key_title(self, key) -> None:
@@ -344,7 +386,24 @@ class App:
 
     def _key_howto(self, key) -> None:
         if key in CONTINUE_KEYS:
+            self.set_scene("mode")
+
+    def _key_mode(self, key) -> None:
+        if DIGITS.get(key) == 1:          # singleplayer: choose a country first
+            self.player = None
+            self.set_scene("country")
+        elif DIGITS.get(key) == 2:        # multiplayer: the game as before
+            self.player = None
             self.set_scene("sound")
+
+    def _key_country(self, key) -> None:
+        codes = self.all_content.codes
+        number = DIGITS.get(key, 0)
+        if self.player is None and 1 <= number <= len(codes):
+            self.player = codes[number - 1]
+            self.picked_at = self.scene_time
+            self.backdrop = None              # redraw with the chosen card lit up
+            self.audio.play("select")
 
     def _key_sound(self, key) -> None:
         if key in CONTINUE_KEYS:
@@ -390,7 +449,7 @@ class App:
 
     def _key_credits(self, key) -> None:
         if key in CONTINUE_KEYS:
-            self.state = None
+            self.back_to_start()
             self.set_scene("title")
 
     # ----- Time -------------------------------------------------------------------------
@@ -445,6 +504,15 @@ class App:
         self.shown_scores[code] = self.score_from + (self.state.scores[code] - self.score_from) * t
         if self.scene_time >= ui.secs(SCORE_ANIM + SCORE_HOLD):
             self.after_score()
+
+    def _update_country(self, dt) -> None:
+        if self.player is not None and self.scene_time - self.picked_at >= ui.secs(PICK_HOLD):
+            self.set_scene("sound")
+
+    def final_progress(self) -> float:
+        """Singleplayer final screen: the shown percentage while the bar fills."""
+        t = ui.ease_out(self.scene_time / ui.secs(FINAL_FILL))
+        return self.state.scores[self.state.codes[0]] * t
 
     def _update_final(self, dt) -> None:
         self.confetti.update(dt)

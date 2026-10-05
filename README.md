@@ -68,6 +68,18 @@ Windows may say "Windows protected your PC" because the file isn't signed:
 click "More info" and then "Run anyway". `content.xlsx` and `assets/` sit next
 to the .exe, so they can still be edited or swapped there.
 
+## Game styles
+
+After "How to play" the game asks for a game style:
+
+- **1 = Singleplayer**: pick one country (keys 1 to 5), then play
+  SINGLE_ROUNDS turns (6, set in config.py) with just that country. The end
+  screen shows "Your final progress": the GDP growth counting up and a bar
+  that fills green to the right (gain) or red to the left (loss).
+- **2 = Multiplayer**: the classroom game with all teams, ROUNDS rounds (3).
+
+Both end with the credits screen.
+
 ## Controls (presenter)
 
 | Key | Action |
@@ -105,7 +117,8 @@ shows the same list on screen instead of starting if something is wrong.
 Everything in `assets/` is optional; the game runs without it.
 
 - `assets/backgrounds/`: full-screen photos, one per screen: `title.jpg`,
-  `howto.jpg`, `sound.jpg` (sound check), `board.jpg`, `event.jpg` (question
+  `howto.jpg`, `mode.jpg` (game style), `country.jpg` (singleplayer country
+  choice), `sound.jpg` (sound check), `board.jpg`, `event.jpg` (question
   card) and `reveal.jpg` (answer). Replace any of them with another photo;
   other sizes are cropped to fill the screen. A missing photo just means a
   plain background on that screen.
@@ -114,7 +127,7 @@ Everything in `assets/` is optional; the game runs without it.
   and the text under it) is `credits` in the TEXT dictionary in config.py.
 
 - `assets/sounds/`: dice.wav, step.wav, good.wav, bad.wav, best.wav, tick.wav,
-  win.wav (.ogg also works). Missing sounds are replaced by simple beeps.
+  win.wav, select.wav (a country is chosen in singleplayer) (.ogg also works). Missing sounds are replaced by simple beeps.
 - `assets/music/background1.mp3`, `background2.mp3`, `background3.mp3`: the
   background playlist. The songs play one after another in name order, then
   start again, quietly throughout the game (volume: MUSIC_VOLUME in
