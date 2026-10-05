@@ -40,15 +40,78 @@ def _country_line(surface, app, code: str, pos, size=42, style="text", label=Non
     return ui.text(surface, label or country.name, style, size, ui.INK, (x, cy), "midleft")
 
 
-def _prompt(surface, s: str, y: int = 1000) -> None:
-    ui.text(surface, s, "text", 38, ui.INK, (ui.W // 2, y), "center")
+def _prompt(surface, s: str, y: int = 1000) -> pygame.Rect:
+    return ui.text(surface, s, "text", 38, ui.INK, (ui.W // 2, y), "center")
+
+
+def _say(app, key: str) -> str:
+    """TEXT[key], or its "Tap ..." version when the game is being played by touch."""
+    if app.touch and f"{key}_touch" in TEXT:
+        return TEXT[f"{key}_touch"]
+    return TEXT[key]
+
+
+# ----- Where things can be tapped (also used for drawing) ---------------------------------
+
+MENU_BUTTON = ((1866, 54), 42)                 # centre and radius of the round menu button
+
+
+def menu_button_hit(pos) -> bool:
+    (x, y), r = MENU_BUTTON
+    return (pos[0] - x) ** 2 + (pos[1] - y) ** 2 <= (r + 12) ** 2
+
+
+def mode_panels() -> list[pygame.Rect]:
+    panels = []
+    for i in range(2):
+        panel = pygame.Rect(0, 0, 640, 360)
+        panel.center = (ui.W // 2 + (380 if i else -380), 470)
+        panels.append(panel)
+    return panels
+
+
+def country_cards(count: int) -> list[pygame.Rect]:
+    gap = 30
+    width = min(330, (1800 - gap * (count - 1)) // count)
+    x = (ui.W - width * count - gap * (count - 1)) // 2
+    return [pygame.Rect(x + i * (width + gap), 250, width, 560) for i in range(count)]
+
+
+def resume_buttons() -> list[pygame.Rect]:
+    buttons = []
+    for i in range(2):
+        button = pygame.Rect(0, 0, 440, 110)
+        button.center = (ui.W // 2 + (270 if i else -270), 740)
+        buttons.append(button)
+    return buttons
+
+
+def menu_items(app) -> list[tuple[str, str, bool, pygame.Rect]]:
+    """The touch menu: (action, label, can be used now, where it is)."""
+    items = [
+        ("undo", TEXT["menu_undo"], app.can_undo_now()),
+        ("sound", TEXT["menu_sound_on"] if app.audio.muted else TEXT["menu_sound_off"], True),
+        ("fullscreen", TEXT["menu_fullscreen"], True),
+        ("end", TEXT["menu_end_confirm"] if app.end_armed > 0 else TEXT["menu_end"], app.in_game()),
+        ("close", TEXT["menu_close"], True),
+    ]
+    top = ui.H // 2 - len(items) * 55 + 50
+    result = []
+    for i, (action, label, usable) in enumerate(items):
+        rect = pygame.Rect(0, 0, 680, 92)
+        rect.center = (ui.W // 2, top + i * 110)
+        result.append((action, label, usable, rect))
+    return result
 
 
 # ----- Simple screens ---------------------------------------------------------------
 
 def draw_resume(surface, app) -> None:
-    ui.text(surface, TEXT["resume_found"], "bold", 46, ui.INK, (ui.W // 2, 470), "center")
-    ui.text(surface, TEXT["resume_prompt"], "text", 46, ui.INK, (ui.W // 2, 560), "center")
+    ui.text(surface, TEXT["resume_found"], "bold", 46, ui.INK, (ui.W // 2, 430), "center")
+    ui.text(surface, _say(app, "resume_prompt"), "text", 46, ui.INK, (ui.W // 2, 520), "center")
+    for rect, label, main in zip(resume_buttons(), (TEXT["resume_button"], TEXT["new_game_button"]), (True, False)):
+        ui.card(surface, rect, ui.GAIN if main else ui.PAPER, ui.INK, 4, rect.h // 2)
+        ui.text(surface, label, "bold", 46, ui.WHITE if main else ui.INK, rect.center, "center")
 
 
 def _photo(surface, name: str, shade: int = 0) -> bool:
@@ -94,7 +157,7 @@ def _cached(surface, app, draw_static) -> None:
 def draw_title(surface, app) -> None:
     _cached(surface, app, _title_static)
     on_photo = ui.background("title") is not None
-    _pulsing_button(surface, TEXT["press_start"], (ui.W // 2, 900), app.scene_time, on_photo)
+    _pulsing_button(surface, _say(app, "press_start"), (ui.W // 2, 900), app.scene_time, on_photo)
 
 
 def _title_static(surface, app) -> None:
@@ -107,7 +170,7 @@ def _title_static(surface, app) -> None:
 def draw_howto(surface, app) -> None:
     _cached(surface, app, _howto_static)
     on_photo = ui.background("howto") is not None
-    _pulsing_button(surface, TEXT["how_continue"], (ui.W // 2, 900 if on_photo else 1000),
+    _pulsing_button(surface, _say(app, "how_continue"), (ui.W // 2, 900 if on_photo else 1000),
                     app.scene_time, on_photo)
 
 
@@ -162,7 +225,7 @@ def draw_closed(surface, app) -> None:
     """Web version only: shown after Esc twice, because a web page can't close its tab."""
     ui.text(surface, TEXT["closed_title"], "display", 72, ui.INK, (ui.W // 2, 440), "center")
     ui.text(surface, TEXT["closed_body"], "text", 46, ui.INK, (ui.W // 2, 540), "center")
-    _prompt(surface, TEXT["closed_resume"], 900)
+    _prompt(surface, _say(app, "closed_resume"), 900)
 
 
 def draw_crash(surface, app) -> None:
@@ -223,7 +286,7 @@ def _draw_middle(surface, app, code: str) -> None:
         ui.text(surface, line, "bold", size, ui.INK, (cx, y), "midtop")
         y += 50
     if app.scene == "turn":       # fades out and in, like the other "press space" prompts
-        ui.text(surface, TEXT["space_to_roll"], "bold", 38, ui.INK, (cx, box.bottom - 10), "midbottom",
+        ui.text(surface, _say(app, "space_to_roll"), "bold", 38, ui.INK, (cx, box.bottom - 10), "midbottom",
                 alpha=ui.pulse(app.scene_time))
 
 
@@ -371,7 +434,7 @@ def draw_reveal(surface, app) -> None:
             surface.blit(tag, tag.get_rect(center=box.center))
 
     ui.paragraph(surface, result.reason, "text", 38, ui.INK, (x, REVEAL.y + 760), width)
-    ui.text(surface, TEXT["space_continue"], "bold", 34, ui.INK,
+    ui.text(surface, _say(app, "space_continue"), "bold", 34, ui.INK,
             (REVEAL.right - 50, REVEAL.bottom - 40), "bottomright", alpha=ui.pulse(app.scene_time))
 
 
@@ -411,8 +474,8 @@ def draw_final(surface, app) -> None:
                 "text", 38, ui.INK, (1210, cy), "midleft")
         y += row_h
     if WEB:
-        _prompt(surface, TEXT["download_log"], 915)
-    _pulsing_button(surface, TEXT["final_continue"], (ui.W // 2, 1005), app.scene_time, False)
+        app.download_rect = _prompt(surface, _say(app, "download_log"), 915)
+    _pulsing_button(surface, _say(app, "final_continue"), (ui.W // 2, 1005), app.scene_time, False)
 
 
 def _draw_final_single(surface, app) -> None:
@@ -453,8 +516,8 @@ def _draw_final_single(surface, app) -> None:
         ui.text(surface, ui.signed_pct(v), "bold", 38, ui.value_color(v), (bx, bar.bottom + 28), "midtop")
 
     if WEB:
-        ui.text(surface, TEXT["download_log"], "text", 38, ui.INK, (x, 915), "center")
-    _pulsing_button(surface, TEXT["final_continue"], (x, 1005), app.scene_time, False)
+        app.download_rect = ui.text(surface, _say(app, "download_log"), "text", 38, ui.INK, (x, 915), "center")
+    _pulsing_button(surface, _say(app, "final_continue"), (x, 1005), app.scene_time, False)
 
 
 # ----- Game style and country choice ------------------------------------------------------
@@ -463,14 +526,12 @@ def draw_mode(surface, app) -> None:
     """Two green panels: 1 = singleplayer, 2 = multiplayer."""
     _cached(surface, app, _mode_static)
     on_photo = ui.background("mode") is not None
-    _pulsing_button(surface, TEXT["mode_prompt"], (ui.W // 2, 975), app.scene_time, on_photo)
+    _pulsing_button(surface, _say(app, "mode_prompt"), (ui.W // 2, 975), app.scene_time, on_photo)
 
 
 def _mode_static(surface, app) -> None:
     _photo(surface, "mode", shade=90)
-    for i, label in enumerate((TEXT["mode_single"], TEXT["mode_multi"])):
-        panel = pygame.Rect(0, 0, 640, 360)
-        panel.center = (ui.W // 2 + (380 if i else -380), 470)
+    for panel, label in zip(mode_panels(), (TEXT["mode_single"], TEXT["mode_multi"])):
         ui.card(surface, panel, ui.GAIN, ui.WHITE, 6, 30)
         ui.text(surface, label, "bold", 80, ui.WHITE, panel.center, "center")
 
@@ -480,7 +541,7 @@ def draw_country(surface, app) -> None:
     _cached(surface, app, _country_static)
     if app.player is None:
         on_photo = ui.background("country") is not None
-        prompt = TEXT["country_prompt"].format(count=len(app.all_content.countries))
+        prompt = _say(app, "country_prompt").format(count=len(app.all_content.countries))
         _pulsing_button(surface, prompt, (ui.W // 2, 975), app.scene_time, on_photo)
 
 
@@ -489,11 +550,9 @@ def _country_static(surface, app) -> None:
     ui.text(surface, TEXT["country_title"], "display", 100, ui.WHITE if on_photo else ui.INK,
             (ui.W // 2, 130), "center")
     countries = app.all_content.countries
-    gap = 30
-    width = min(330, (1800 - gap * (len(countries) - 1)) // len(countries))
-    x = (ui.W - width * len(countries) - gap * (len(countries) - 1)) // 2
-    for number, country in enumerate(countries, start=1):
-        card = pygame.Rect(x, 250, width, 560)
+    cards = country_cards(len(countries))
+    for number, (country, card) in enumerate(zip(countries, cards), start=1):
+        width = card.w
         picked = country.code == app.player
         if picked:
             ui.card(surface, card, LANDED_FILL, ui.GAIN, 10, 24)
@@ -506,7 +565,6 @@ def _country_static(surface, app) -> None:
             surface.blit(flag, flag.get_rect(midtop=(card.centerx, card.y + 380)))
         for i, line in enumerate(ui.wrap(country.name, "bold", 42, width - 30)[:2]):
             ui.text(surface, line, "bold", 42, ui.INK, (card.centerx, card.y + 450 + i * 46), "midtop")
-        x += width + gap
 
 
 # ----- Sound check and credits ----------------------------------------------------------
@@ -520,7 +578,7 @@ def draw_sound(surface, app) -> None:
     shake = (9 * math.sin(t * 43), 6 * math.sin(t * 57 + 1.3))
     ui.text(surface, TEXT["sound_title"], "display", 150, ui.WHITE if on_photo else ui.INK,
             (ui.W // 2 + shake[0], 770 + shake[1]), "center")
-    _pulsing_button(surface, TEXT["sound_continue"], (ui.W // 2, 985), t, on_photo)
+    _pulsing_button(surface, _say(app, "sound_continue"), (ui.W // 2, 985), t, on_photo)
 
 
 def _sound_static(surface, app) -> None:
@@ -536,7 +594,7 @@ def _sound_static(surface, app) -> None:
 def draw_credits(surface, app) -> None:
     """White screen with the team's photos and roles."""
     _cached(surface, app, _credits_static)
-    _pulsing_button(surface, TEXT["play_again"], (ui.W // 2, 985), app.scene_time, False)
+    _pulsing_button(surface, _say(app, "play_again"), (ui.W // 2, 985), app.scene_time, False)
 
 
 def _credits_static(surface, app) -> None:
@@ -571,8 +629,53 @@ def draw_overlays(surface, app) -> None:
             y = box.y + 96 + i * 54
             ui.text(surface, key, "bold", 30, ui.INK, (box.x + 30, y))
             ui.text(surface, action, "text", 30, ui.INK, (box.x + 300, y))
+    if app.touch and app.scene not in ("error", "crash"):
+        _menu_button(surface)
+    if app.menu_open:
+        _draw_menu(surface, app)
     if app.toast_left > 0 and app.toast:
         label = ui.render(app.toast, "bold", 34, ui.INK)
         box = label.get_rect(center=(ui.W // 2, 1030)).inflate(60, 24)
         ui.card(surface, box)
         surface.blit(label, label.get_rect(center=box.center))
+
+
+def _menu_button(surface) -> None:
+    """Round button with three lines: opens the touch menu."""
+    (x, y), r = MENU_BUTTON
+    pygame.draw.circle(surface, ui.INK, (x, y), r)
+    pygame.draw.circle(surface, ui.WHITE, (x, y), r, 4)
+    for dy in (-13, 0, 13):
+        pygame.draw.line(surface, ui.WHITE, (x - 18, y + dy), (x + 18, y + dy), 6)
+
+
+def _draw_menu(surface, app) -> None:
+    """Big buttons for what the keyboard keys do: undo, sound, fullscreen, end."""
+    ui.card(surface, surface.get_rect(), (*ui.INK, 150), None, 0, 0)
+    items = menu_items(app)
+    box = items[0][3].unionall([rect for *_, rect in items]).inflate(80, 80)
+    box.y -= 70           # room for the title above the buttons
+    box.h += 70
+    ui.card(surface, box, ui.PAPER, ui.INK, 4, 24)
+    ui.text(surface, TEXT["menu_title"], "display", 64, ui.INK, (box.centerx, box.y + 20), "midtop")
+    for action, label, usable, rect in items:
+        armed = action == "end" and app.end_armed > 0
+        fill = ui.LOSS if armed else (ui.PAPER if usable else ui.LINE)
+        ui.card(surface, rect, fill, ui.INK, 4, rect.h // 2)
+        color = ui.WHITE if armed else ui.INK
+        ui.text(surface, label, "bold", 42, color, rect.center, "center", alpha=255 if usable else 110)
+
+
+def draw_rotate(surface, app) -> None:
+    """Shown on a phone held upright: the game is made for a sideways screen."""
+    surface.fill(ui.PAPER)
+    t = app.scene_time
+    turn = 90 * (0.5 - 0.5 * math.cos(t * 2.2))          # the phone turns back and forth
+    phone = pygame.Surface((260, 460), pygame.SRCALPHA)
+    pygame.draw.rect(phone, ui.INK, phone.get_rect(), border_radius=40)
+    pygame.draw.rect(phone, ui.WHITE, phone.get_rect().inflate(-36, -90), border_radius=12)
+    pygame.draw.circle(phone, ui.WHITE, (130, 430), 12)
+    turned = pygame.transform.rotate(phone, -turn)
+    surface.blit(turned, turned.get_rect(center=(ui.W // 2, 330)))
+    ui.text(surface, TEXT["rotate_1"], "display", 170, ui.INK, (ui.W // 2, 700), "center")
+    ui.text(surface, TEXT["rotate_2"], "display", 170, ui.INK, (ui.W // 2, 880), "center")

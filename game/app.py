@@ -33,7 +33,8 @@ from game.audio import Audio, pre_init
 from game.board import BoardLayout
 from game.content import ContentError, load_content
 from game.state import GameState, delete_save, load_game, persist
-from game.webstore import WEB, download, keep, restore
+from game.webstore import WEB, download, held_upright, keep, restore, setup_touch, touch_screen
+from game.webstore import toggle_fullscreen as web_fullscreen
 
 # The game folder. In the Windows .exe (see make_exe.py) it is the folder of the .exe.
 ROOT = (Path(sys.executable).parent if getattr(sys, "frozen", False)
@@ -57,6 +58,9 @@ BOARD_SCENES = ("turn", "rolling", "moving", "landed", "score")
 DIGITS = {getattr(pygame, f"K_{n}"): n for n in range(1, 10)}
 DIGITS.update({getattr(pygame, f"K_KP{n}"): n for n in range(1, 10)})
 CONTINUE_KEYS = (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER)
+# screens where a tap anywhere does what Space does
+TAP_TO_CONTINUE = ("title", "howto", "sound", "turn", "rolling", "moving", "landed", "reveal",
+                   "score", "credits")
 
 
 class App:
@@ -82,6 +86,13 @@ class App:
         self.esc_left = self.e_left = 0.0
         self.show_help = False
         self.show_card = config.SHOW_COUNTRY_CARD
+        self.touch = touch_screen()       # played by touch: "Tap ..." texts and the menu button
+        self.menu_open = False
+        self.end_armed = 0.0              # touch menu: "End game now" was tapped once
+        self.upright = False              # a phone held upright (web version)
+        self.download_rect = None
+        if WEB:
+            setup_touch()
 
         self.content = None           # what the current game uses (one country in singleplayer)
         self.all_content = None       # everything in content.xlsx
@@ -122,6 +133,7 @@ class App:
         self.scene = name
         self.scene_time = 0.0
         self.backdrop = None          # redrawn once for the new screen (see screens._backdrop)
+        self.menu_open = False
         self.lock = INPUT_LOCK
         if name in ("resume", "title", "howto", "mode", "country", "sound", "final", "credits"):
             self.audio.music("title")
@@ -138,6 +150,13 @@ class App:
         if self.scene in ("reveal", "score") and self.record is not None:
             return self.record.code
         return self.state.current_team
+
+    def in_game(self) -> bool:
+        """True on the screens of a running game (board, question, answer)."""
+        return self.scene in GAME_SCENES and self.state is not None
+
+    def can_undo_now(self) -> bool:
+        return self.scene in ("turn", "reveal", "score") and self.state is not None and self.state.can_undo
 
     def single(self) -> bool:
         """True while a singleplayer game is on (one country)."""
@@ -305,19 +324,24 @@ class App:
         if event.type == pygame.QUIT:
             self.quit()
             return
+        if event.type == pygame.FINGERDOWN:
+            self.touch = True             # the tap itself arrives as a mouse click
+            return
         if event.type not in (pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN):
             return
-        if self.lock > 0:
+        if self.upright or self.lock > 0:
             return
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1 and self.scene == "event":
-                for i, button in enumerate(self.buttons):
-                    if button.hit(event.pos):
-                        self.choose(i)
-                        return
+            if event.button == 1:
+                if getattr(event, "touch", False):
+                    self.touch = True
+                self.tap(event.pos)
             return
 
         key = event.key
+        if self.menu_open and key == pygame.K_ESCAPE:
+            self.menu_open = False
+            return
         if self._global_key(key):
             return
         handler = getattr(self, f"_key_{self.scene}", None)
@@ -346,13 +370,7 @@ class App:
             self.show_toast(TEXT["sound_off"] if muted else TEXT["sound_on"])
             return True
         if key == pygame.K_F11:
-            if not self.headless:
-                try:
-                    pygame.display.toggle_fullscreen()
-                    if not WEB and not pygame.display.is_fullscreen():
-                        _fit_window(_display_index())
-                except pygame.error:
-                    pass
+            self.toggle_fullscreen()
             return True
         if key == pygame.K_h:
             self.show_help = not self.show_help
@@ -365,6 +383,97 @@ class App:
                 self.undo()
             return True
         return False
+
+    def toggle_fullscreen(self) -> None:
+        if self.headless:
+            return
+        if WEB:
+            web_fullscreen()
+            return
+        try:
+            pygame.display.toggle_fullscreen()
+            if not pygame.display.is_fullscreen():
+                _fit_window(_display_index())
+        except pygame.error:
+            pass
+
+    # ----- Taps (touch screens) and mouse clicks -------------------------------------------
+
+    def tap(self, pos) -> None:
+        """A tap does the same as the matching key."""
+        if self.touch and self.scene not in ("error", "crash") and screens.menu_button_hit(pos):
+            self.menu_open = not self.menu_open
+            self.end_armed = 0.0
+            return
+        if self.menu_open:
+            self._tap_menu(pos)
+            return
+        handler = getattr(self, f"_tap_{self.scene}", None)
+        if handler is not None:
+            handler(pos)
+        elif self.scene in TAP_TO_CONTINUE:
+            getattr(self, f"_key_{self.scene}")(pygame.K_SPACE)
+
+    def _tap_menu(self, pos) -> None:
+        for action, _label, usable, rect in screens.menu_items(self):
+            if rect.collidepoint(pos):
+                if usable:
+                    self._menu_action(action)
+                return
+        self.menu_open = False            # a tap next to the menu closes it
+
+    def _menu_action(self, action: str) -> None:
+        if action == "undo":
+            self.menu_open = False
+            self.undo()
+        elif action == "sound":
+            muted = self.audio.toggle_mute()
+            self.show_toast(TEXT["sound_off"] if muted else TEXT["sound_on"])
+        elif action == "fullscreen":
+            self.toggle_fullscreen()
+        elif action == "end":
+            if self.end_armed > 0:        # second tap: really end the game
+                self.menu_open = False
+                self.end_armed = 0.0
+                self.go_final()
+            else:
+                self.end_armed = DOUBLE_PRESS
+        else:
+            self.menu_open = False
+
+    def _tap_resume(self, pos) -> None:
+        resume, new = screens.resume_buttons()
+        if resume.collidepoint(pos):
+            self._key_resume(pygame.K_r)
+        elif new.collidepoint(pos):
+            self._key_resume(pygame.K_n)
+
+    def _tap_closed(self, pos) -> None:
+        self._key_closed(pygame.K_r)
+
+    def _tap_mode(self, pos) -> None:
+        for number, panel in enumerate(screens.mode_panels(), start=1):
+            if panel.collidepoint(pos):
+                self._key_mode(pygame.K_0 + number)
+
+    def _tap_country(self, pos) -> None:
+        for number, card in enumerate(screens.country_cards(len(self.all_content.codes)), start=1):
+            if card.collidepoint(pos):
+                self._key_country(pygame.K_0 + number)
+
+    def _tap_event(self, pos) -> None:
+        for i, button in enumerate(self.buttons):
+            if button.hit(pos):
+                self.choose(i)
+                return
+
+    def _tap_final(self, pos) -> None:
+        if WEB and self.download_rect is not None and self.download_rect.inflate(60, 40).collidepoint(pos):
+            self._key_final(pygame.K_l)
+        else:
+            self._key_final(pygame.K_SPACE)
+
+    # ----- Keys per screen ------------------------------------------------------------------
 
     def _key_resume(self, key) -> None:
         if key == pygame.K_r:
@@ -460,6 +569,9 @@ class App:
         self.toast_left = max(0.0, self.toast_left - dt)
         self.esc_left = max(0.0, self.esc_left - dt)
         self.e_left = max(0.0, self.e_left - dt)
+        self.end_armed = max(0.0, self.end_armed - dt)
+        if WEB and int(self.scene_time * 2) != int((self.scene_time - dt) * 2):
+            self.upright = held_upright()   # checked twice a second
         self.audio.update(dt)                 # next background song when one ends
         handler = getattr(self, f"_update_{self.scene}", None)
         if handler is not None:
@@ -528,6 +640,8 @@ class App:
             if draw is not None:
                 draw(surface, self)
         screens.draw_overlays(surface, self)
+        if self.upright:
+            screens.draw_rotate(surface, self)
 
     # ----- Main loop --------------------------------------------------------------------
 

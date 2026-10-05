@@ -84,6 +84,19 @@ After "How to play" the game asks for a game style:
 
 Both end with the credits screen.
 
+## Touch screens (phones, tablets, smartboards)
+
+The game can be played by tapping only:
+
+- A tap anywhere does what Space does (start, roll, continue, skip).
+- Tap the Singleplayer or Multiplayer panel, a country card, or one of the
+  three answers to choose it. The resume screen has Resume and New game buttons.
+- On touch screens the texts say "Tap to ..." and a round menu button
+  appears in the top right corner: Undo last choice, Sound on/off,
+  Fullscreen and End game now (tap twice to confirm), the same as the keys.
+- On a phone held upright the game asks to turn the phone sideways.
+- Mouse clicks work the same way on a normal computer.
+
 ## Controls (presenter)
 
 | Key | Action |

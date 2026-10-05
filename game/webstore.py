@@ -1,4 +1,7 @@
-"""Keep savegame.json and game_log.csv in the browser's storage (web version only).
+"""Browser helpers for the web version (on a normal computer they do nothing).
+
+Keeps savegame.json and game_log.csv in the browser's storage, and helps with
+touch screens: is this a phone or tablet, is it held upright, fullscreen.
 
 In the browser, files written by the game disappear when the page is reloaded.
 These helpers copy them into the browser's localStorage and back, so resume
@@ -69,3 +72,37 @@ def download(path: Path) -> bool:
         return True
     except Exception:
         return False
+
+
+def _run_js(script: str):
+    """Run a bit of JavaScript in the page. Returns its result, or None."""
+    if not WEB:
+        return None
+    try:
+        import platform
+        return platform.window.eval(script)
+    except Exception:
+        return None
+
+
+def touch_screen() -> bool:
+    """True on phones and tablets (where the main pointer is a finger)."""
+    return bool(_run_js("window.matchMedia('(pointer: coarse)').matches"))
+
+
+def held_upright() -> bool:
+    """True if the browser window is taller than wide (a phone held upright)."""
+    return bool(_run_js("window.innerHeight > window.innerWidth * 1.05"))
+
+
+def toggle_fullscreen() -> None:
+    _run_js("(function () { var d = document, e = d.documentElement;"
+            " if (d.fullscreenElement || d.webkitFullscreenElement) {"
+            "   (d.exitFullscreen || d.webkitExitFullscreen).call(d); }"
+            " else { (e.requestFullscreen || e.webkitRequestFullscreen).call(e); } })()")
+
+
+def setup_touch() -> None:
+    """Stop the browser from zooming or scrolling the page when the game is touched."""
+    _run_js("document.body.style.touchAction = 'none';"
+            " document.querySelectorAll('canvas').forEach(function (c) { c.style.touchAction = 'none'; });")
